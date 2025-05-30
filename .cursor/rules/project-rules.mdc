@@ -1,0 +1,154 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Project-Specific AI Agent Rules for Ultimon Reimagined
+Purpose: This document outlines project-specific rules, context, and architectural guidelines for AI coding agents working on the "Ultimon Reimagined" project. This information is intended to be used to configure AI assistance tools (like Cursor's .cursor/rules.yml) or as a direct reference for AI agents.
+
+General Project Context
+Project Name: Ultimon Reimagined (UltimateSensorMonitor Reimagined)
+
+Core Goal: Highly customizable, visually rich, dynamically animated hardware monitoring application.
+
+Key Design Philosophy: "Structured Fluidity & Contextual Aesthetics" - emphasize user freedom in layout, precision through micro-grid/snapping, and tunable visual dimensions.
+
+Technology Stack & Languages
+Frontend:
+
+Framework: SvelteKit
+
+Language: TypeScript (strictly typed)
+
+Styling: Tailwind CSS (utility-first, use CSS Custom Properties for dynamic theming)
+
+State Management: Svelte Stores (prefer modular stores, use derived for computed states)
+
+Component Suffix: .svelte
+
+Backend:
+
+Framework: FastAPI (Python)
+
+Language: Python (type hinted)
+
+Data Validation: Pydantic
+
+Real-time Communication: WebSockets
+
+Architectural Patterns & Conventions
+Frontend:
+
+Component-Based Architecture: Build UI with reusable Svelte components.
+
+Props for Configuration: Components should be configurable via props.
+
+Events for Communication: Use Svelte's event dispatching for child-to-parent communication.
+
+Modularity: Keep components and stores focused on specific responsibilities.
+
+CSS Custom Properties for Theming: Dynamic styling (Visual Dimensions) should be driven by CSS Custom Properties, updated via Svelte stores. Tailwind utilities should consume these variables.
+
+Example: bg-[var(--theme-primary-color)]
+
+Key Components (Examples - refer to project docs for more):
+
+DashboardCanvas.svelte: Main area for widgets.
+
+WidgetShell.svelte: Base component for individual sensor widgets.
+
+LeftSidebar.svelte: Contains SensorSourceList.svelte.
+
+RightSidebar.svelte: Contains WidgetInspector.svelte and VisualDimensionsPanel.svelte.
+
+TopBar.svelte: Global actions, mode toggle, preset management.
+
+State Management (widgetsStore, visualDimensionsStore, etc.):
+
+Store widget configurations (ID, sensorId, posX, posY, width, height, isLocked, groupId, gaugeType, custom styles).
+
+Store global visual dimension settings.
+
+Prefer updating stores via explicit functions rather than direct two-way binding for complex updates.
+
+Layout System:
+
+Widgets are absolutely positioned on the DashboardCanvas.svelte.
+
+Micro-grid for alignment assistance (not rigid slots).
+
+Implement snapping to grid and other widgets.
+
+Widget Locking (isLocked property) and Grouping (groupId, group objects) are key features.
+
+Sharing:
+
+Focus on export/import of full Dashboard Presets (JSON).
+
+Focus on export/import of Sharable Widget Groups (JSON snippets).
+
+Backend:
+
+API Design: Follow RESTful principles for standard API endpoints.
+
+WebSocket Endpoints: For real-time sensor data broadcasting.
+
+Pydantic Models: Use for request/response validation and data structuring (e.g., for presets).
+
+Async Operations: Utilize FastAPI's async capabilities for I/O-bound tasks.
+
+Coding Style & Quality
+TypeScript:
+
+Use strict types. Avoid any where possible.
+
+Define interfaces or types for props, store values, and API payloads.
+
+Python:
+
+Use type hints for all function signatures and variables.
+
+Follow PEP 8 guidelines.
+
+Svelte:
+
+Keep component logic concise.
+
+Use reactive statements ($:) judiciously for clarity.
+
+Comments:
+
+Add JSDoc/TSDoc comments for Svelte component props and major functions.
+
+Add Python docstrings for functions and classes.
+
+Explain complex logic or non-obvious decisions.
+
+Error Handling:
+
+Implement robust error handling on both frontend (e.g., for API calls, WebSocket issues) and backend (e.g., clear error responses, try-except blocks).
+
+Testing:
+
+Frontend: Encourage generation of unit tests (Vitest) for Svelte components and stores, and Playwright for E2E tests for key user flows.
+
+Backend: Encourage generation of unit tests for API endpoints and business logic.
+
+Specific Feature Implementation Notes (Refer to Phased Implementation Plan)
+Phase 1 (MVP): Focus on core layout, basic widget rendering/drag-drop, initial visual dimensions, local presets.
+
+Phase 2: Enhanced styling, versatile gauge types, initial widget inspector, backend preset storage.
+
+Phase 3: Widget locking/grouping, sharable widget groups, advanced snapping, full visual dimensions, undo/redo.
+
+AI Interaction Style
+When asked to implement a feature, refer to the Phased Implementation Plan and Design Guides for Ultimon Reimagined.
+
+Prioritize solutions that align with the existing technology stack and architectural patterns outlined herein.
+
+If a request seems to deviate significantly, ask for clarification or point out potential conflicts with established project guidelines.
+
+When generating new components, try to follow the structure and style of existing similar components within the project.
+
+
+Break down complex tasks into smaller, manageable steps if possible, and request guidance or review for each step.

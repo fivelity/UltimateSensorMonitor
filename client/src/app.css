@@ -1,0 +1,184 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Custom CSS Variables for theming */
+:root {
+  /* Core Visual Dimensions */
+  --materiality: 0.5;
+  --information-density: 0.5;
+  --animation-level: 0.5;
+  
+  /* Micro-grid */
+  --grid-size: 5px;
+  
+  /* Professional theme (default) */
+  --theme-primary: #3b82f6;
+  --theme-secondary: #6366f1;
+  --theme-accent: #8b5cf6;
+  --theme-background: #ffffff;
+  --theme-surface: #f8fafc;
+  --theme-border: #e2e8f0;
+  --theme-text: #1e293b;
+  --theme-text-muted: #64748b;
+}
+
+.theme-gamer {
+  --theme-primary: #22c55e;
+  --theme-secondary: #10b981;
+  --theme-accent: #06b6d4;
+  --theme-background: #0f172a;
+  --theme-surface: #1e293b;
+  --theme-border: #334155;
+  --theme-text: #f1f5f9;
+  --theme-text-muted: #94a3b8;
+}
+
+.theme-minimal {
+  --theme-primary: #6b7280;
+  --theme-secondary: #9ca3af;
+  --theme-accent: #d1d5db;
+  --theme-background: #ffffff;
+  --theme-surface: #fafafa;
+  --theme-border: #f3f4f6;
+  --theme-text: #111827;
+  --theme-text-muted: #6b7280;
+}
+
+/* Custom component styles */
+.widget-shell {
+  background: rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.8));
+  backdrop-filter: blur(calc(2px + var(--materiality) * 8px));
+  border: 1px solid rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.2));
+  border-radius: calc(4px + var(--materiality) * 8px);
+  transition: all 0.3s ease;
+}
+
+.widget-shell:hover {
+  background: rgba(255, 255, 255, calc(0.15 + var(--materiality) * 0.85));
+  transform: translateY(calc(-1px * var(--animation-level)));
+  box-shadow: 0 calc(4px * (1 + var(--materiality))) calc(12px * (1 + var(--materiality))) rgba(0, 0, 0, calc(0.1 + var(--materiality) * 0.1));
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, calc(0.05 + var(--materiality) * 0.15));
+  backdrop-filter: blur(calc(4px + var(--materiality) * 12px));
+  border: 1px solid rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.2));
+}
+
+.micro-grid {
+  background-image: 
+    linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-text-muted);
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom gauge styles */
+.gauge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.radial-gauge {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.linear-gauge {
+  width: 100%;
+  height: 20px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--theme-surface);
+}
+
+.linear-gauge-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary));
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 160px;
+}
+
+.context-menu-item {
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-menu-item:hover {
+  background: var(--theme-primary);
+  color: white;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--theme-border);
+  margin: 4px 0;
+} 

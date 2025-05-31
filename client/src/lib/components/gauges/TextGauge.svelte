@@ -11,6 +11,7 @@
 
   // Format the value based on its type
   $: formattedValue = formatValue(displayValue);
+  $: validValue = displayValue !== null && displayValue !== undefined && displayValue !== '--' && displayValue !== '' && !Number.isNaN(displayValue);
 
   function formatValue(value: any): string {
     if (value === null || value === undefined || value === '--') {
@@ -47,12 +48,18 @@
 
     <!-- Main Value -->
     <div class="flex-1 flex items-center justify-center">
-      <div 
-        class="font-bold text-[var(--theme-text)]"
-        style="font-size: {fontSize}px; line-height: 1;"
-      >
-        {formattedValue}
-      </div>
+      {#if validValue}
+        <div 
+          class="font-bold text-[var(--theme-text)]"
+          style="font-size: {fontSize}px; line-height: 1;"
+        >
+          {formattedValue}
+        </div>
+      {:else}
+        <div class="font-bold text-[var(--theme-text-muted)] opacity-60" style="font-size: {fontSize}px; line-height: 1;">
+          --
+        </div>
+      {/if}
     </div>
 
     <!-- Unit -->
@@ -72,5 +79,13 @@
     width: 100%;
     height: 100%;
     padding: 8px;
+    background: var(--theme-surface);
+    border-radius: 0.75rem; /* 12px */
+    font-family: var(--font-family, sans-serif);
   }
-</style> 
+  /* Ensure child text elements inherit the font by default */
+  .gauge-container :global(div),
+  .gauge-container :global(span) {
+    font-family: inherit;
+  }
+</style>

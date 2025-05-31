@@ -59,7 +59,7 @@
   </div>
 
   <!-- Tab Content -->
-  <div class="flex-1 overflow-y-auto sidebar-content">
+  <div class="flex-1 overflow-y-auto sidebar-content p-4">
     {#if activeTab === 'inspector'}
       <WidgetInspector />
     {:else if activeTab === 'visual'}

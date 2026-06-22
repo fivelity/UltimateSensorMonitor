@@ -41,7 +41,7 @@
   }
 
   // Apply visual settings to CSS variables
-  $: {
+  $effect(() => {
     if (typeof document !== 'undefined') {
       const root = document.documentElement;
       
@@ -75,7 +75,7 @@
       root.style.setProperty('--theme-blur-strength', `${$visualSettings.materiality * 10}px`);
       root.style.setProperty('--theme-surface-opacity', materialityOpacity.toString());
     }
-  }
+  });
 </script>
 
 <div class="p-4 space-y-6">
@@ -88,7 +88,7 @@
       <select
         class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         value={$visualSettings.color_scheme}
-        on:change={(e) => updateSettings({ color_scheme: e.currentTarget.value })}
+        onchange={(e) => updateSettings({ color_scheme: e.currentTarget.value })}
       >
         {#each colorSchemes as scheme}
           <option value={scheme.id}>{scheme.name}</option>
@@ -117,7 +117,7 @@
         step="0.1"
         class="w-full h-2 bg-[var(--theme-border)] rounded-lg appearance-none cursor-pointer slider"
         value={$visualSettings.materiality}
-        on:input={(e) => updateSettings({ materiality: parseFloat(e.currentTarget.value) })}
+        oninput={(e) => updateSettings({ materiality: parseFloat(e.currentTarget.value) })}
       />
       <div class="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
         <span>Flat</span>
@@ -138,7 +138,7 @@
         step="0.1"
         class="w-full h-2 bg-[var(--theme-border)] rounded-lg appearance-none cursor-pointer slider"
         value={$visualSettings.information_density}
-        on:input={(e) => updateSettings({ information_density: parseFloat(e.currentTarget.value) })}
+        oninput={(e) => updateSettings({ information_density: parseFloat(e.currentTarget.value) })}
       />
       <div class="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
         <span>Sparse</span>
@@ -159,7 +159,7 @@
         step="0.1"
         class="w-full h-2 bg-[var(--theme-border)] rounded-lg appearance-none cursor-pointer slider"
         value={$visualSettings.animation_level}
-        on:input={(e) => updateSettings({ animation_level: parseFloat(e.currentTarget.value) })}
+        oninput={(e) => updateSettings({ animation_level: parseFloat(e.currentTarget.value) })}
       />
       <div class="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
         <span>Static</span>
@@ -178,7 +178,7 @@
       <select
         class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         value={$visualSettings.font_family}
-        on:change={(e) => updateSettings({ font_family: e.currentTarget.value })}
+        onchange={(e) => updateSettings({ font_family: e.currentTarget.value })}
       >
         {#each fontFamilies as font}
           <option value={font.value}>{font.label}</option>
@@ -199,7 +199,7 @@
         step="0.1"
         class="w-full h-2 bg-[var(--theme-border)] rounded-lg appearance-none cursor-pointer slider"
         value={$visualSettings.font_scale}
-        on:input={(e) => updateSettings({ font_scale: parseFloat(e.currentTarget.value) })}
+        oninput={(e) => updateSettings({ font_scale: parseFloat(e.currentTarget.value) })}
       />
     </div>
   </div>
@@ -215,7 +215,7 @@
         type="checkbox"
         class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
         checked={$visualSettings.enable_animations}
-        on:change={(e) => updateSettings({ enable_animations: e.currentTarget.checked })}
+        onchange={(e) => updateSettings({ enable_animations: e.currentTarget.checked })}
       />
     </div>
 
@@ -226,7 +226,7 @@
         type="checkbox"
         class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
         checked={$visualSettings.enable_blur_effects}
-        on:change={(e) => updateSettings({ enable_blur_effects: e.currentTarget.checked })}
+        onchange={(e) => updateSettings({ enable_blur_effects: e.currentTarget.checked })}
       />
     </div>
 
@@ -237,7 +237,7 @@
         type="checkbox"
         class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
         checked={$visualSettings.reduce_motion}
-        on:change={(e) => updateSettings({ reduce_motion: e.currentTarget.checked })}
+        onchange={(e) => updateSettings({ reduce_motion: e.currentTarget.checked })}
       />
     </div>
   </div>
@@ -259,7 +259,7 @@
         step="1"
         class="w-full h-2 bg-[var(--theme-border)] rounded-lg appearance-none cursor-pointer slider"
         value={$visualSettings.grid_size}
-        on:input={(e) => updateSettings({ grid_size: parseInt(e.currentTarget.value) })}
+        oninput={(e) => updateSettings({ grid_size: parseInt(e.currentTarget.value) })}
       />
       <div class="flex justify-between text-xs text-[var(--theme-text-muted)] mt-1">
         <span>Fine (1px)</span>
@@ -277,7 +277,7 @@
         type="checkbox"
         class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
         checked={$visualSettings.snap_to_grid}
-        on:change={(e) => updateSettings({ snap_to_grid: e.currentTarget.checked })}
+        onchange={(e) => updateSettings({ snap_to_grid: e.currentTarget.checked })}
       />
     </div>
 
@@ -288,7 +288,7 @@
         type="checkbox"
         class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
         checked={$visualSettings.show_grid}
-        on:change={(e) => updateSettings({ show_grid: e.currentTarget.checked })}
+        onchange={(e) => updateSettings({ show_grid: e.currentTarget.checked })}
       />
     </div>
   </div>
@@ -296,7 +296,7 @@
   <!-- Actions -->
   <div class="pt-4 border-t border-[var(--theme-border)]">
     <button
-      on:click={resetToDefaults}
+      onclick={resetToDefaults}
       class="w-full px-4 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-colors"
     >
       Reset to Defaults
@@ -322,4 +322,4 @@
     cursor: pointer;
     border: none;
   }
-</style> 
+</style>

@@ -2,8 +2,12 @@
   import { visualSettings, widgets } from '$lib/stores';
   import type { WidgetConfig } from '$lib/types';
 
-  export let activeWidget: WidgetConfig | null = null;
-  export let isDragging = false;
+  interface Props {
+    activeWidget: WidgetConfig | null;
+    isDragging: boolean;
+  }
+
+  const { activeWidget, isDragging }: Props = $props();
 
   interface SnapGuide {
     type: 'horizontal' | 'vertical';
@@ -12,20 +16,22 @@
     color: string;
   }
 
-  let snapGuides: SnapGuide[] = [];
-  let snapDistance = 10; // pixels
+  let snapGuides = $state<SnapGuide[]>([]);
+  const snapDistance = 10; // pixels
 
-  $: if (activeWidget && isDragging && $visualSettings.snap_to_grid) {
-    calculateSnapGuides();
-  } else {
-    snapGuides = [];
-  }
+  $effect(() => {
+    if (activeWidget && isDragging && $visualSettings.snap_to_grid) {
+      calculateSnapGuides();
+    } else {
+      snapGuides = [];
+    }
+  });
 
   function calculateSnapGuides() {
     if (!activeWidget) return;
 
     const guides: SnapGuide[] = [];
-    const allWidgets = Object.values($widgets).filter(w => w.id !== activeWidget!.id);
+    const allWidgets = Object.values($widgets).filter(w => w.id !== activeWidget.id);
     
     // Calculate horizontal guides (Y positions)
     const yPositions = new Map<number, string[]>();
@@ -53,9 +59,9 @@
 
     // Create horizontal guides
     yPositions.forEach((widgetIds, y) => {
-      if (isNearPosition(activeWidget!.pos_y, y) || 
-          isNearPosition(activeWidget!.pos_y + activeWidget!.height, y) ||
-          isNearPosition(activeWidget!.pos_y + activeWidget!.height / 2, y)) {
+      if (isNearPosition(activeWidget.pos_y, y) || 
+          isNearPosition(activeWidget.pos_y + activeWidget.height, y) ||
+          isNearPosition(activeWidget.pos_y + activeWidget.height / 2, y)) {
         guides.push({
           type: 'horizontal',
           position: y,
@@ -67,9 +73,9 @@
 
     // Create vertical guides
     xPositions.forEach((widgetIds, x) => {
-      if (isNearPosition(activeWidget!.pos_x, x) || 
-          isNearPosition(activeWidget!.pos_x + activeWidget!.width, x) ||
-          isNearPosition(activeWidget!.pos_x + activeWidget!.width / 2, x)) {
+      if (isNearPosition(activeWidget.pos_x, x) || 
+          isNearPosition(activeWidget.pos_x + activeWidget.width, x) ||
+          isNearPosition(activeWidget.pos_x + activeWidget.width / 2, x)) {
         guides.push({
           type: 'vertical',
           position: x,
@@ -259,4 +265,4 @@
     height: 4px;
     transform: translateY(-50%);
   }
-</style> 
+</style>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { selectedWidgets, selectedWidgetConfigs, storeUtils, sensorSources } from '$lib/stores';
-  import type { GaugeType, WidgetConfig } from '$lib/types';
+  import { selectedWidgetConfigs, storeUtils, sensorSources } from '$lib/stores';
+  import type { GaugeType, SensorData, WidgetConfig } from '$lib/types';
 
   const gaugeTypes: { value: GaugeType; label: string; description: string }[] = [
     { value: 'text', label: 'Text Value', description: 'Simple text display' },
@@ -11,8 +11,8 @@
     { value: 'glassmorphic', label: 'Glassmorphic', description: 'Modern glass effect gauge' }
   ];
 
-  $: selectedWidget = $selectedWidgetConfigs[0];
-  $: isMultipleSelection = $selectedWidgetConfigs.length > 1;
+  const selectedWidget = $derived($selectedWidgetConfigs[0]);
+  const isMultipleSelection = $derived($selectedWidgetConfigs.length > 1);
 
   function updateWidget(updates: Partial<WidgetConfig>) {
     if (selectedWidget) {
@@ -24,14 +24,14 @@
     updateWidget({ gauge_type: value as GaugeType });
   }
 
-  function updateGaugeSettings(key: string, value: any) {
+  function updateGaugeSettings(key: string, value: unknown) {
     if (selectedWidget) {
       const newSettings = { ...selectedWidget.gauge_settings, [key]: value };
       updateWidget({ gauge_settings: newSettings });
     }
   }
 
-  function updateStyleSettings(key: string, value: any) {
+  function updateStyleSettings(key: string, value: unknown) {
     if (selectedWidget) {
       const newSettings = { ...selectedWidget.style_settings, [key]: value };
       updateWidget({ style_settings: newSettings });
@@ -39,8 +39,10 @@
   }
 
   // Get available sensors for sensor selection
-  $: availableSensors = Object.values($sensorSources).flatMap(source => 
-    source.active ? source.sensors : []
+  const availableSensors = $derived(
+    Object.values($sensorSources).flatMap((source): SensorData[] =>
+      source.active ? source.sensors : []
+    )
   );
 </script>
 
@@ -64,7 +66,7 @@
     <!-- Widget Basic Info -->
     <div class="space-y-4">
       <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Basic Properties</h3>
-      
+
       <!-- Sensor Selection -->
       <div>
         <label class="block text-sm font-medium text-[var(--theme-text)] mb-2">
@@ -73,7 +75,7 @@
         <select
           class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           value={selectedWidget.sensor_id}
-          on:change={(e) => updateWidget({ sensor_id: e.currentTarget.value })}
+          onchange={(e) => updateWidget({ sensor_id: e.currentTarget.value })}
         >
           {#each availableSensors as sensor}
             <option value={sensor.id}>{sensor.name} ({sensor.category})</option>
@@ -89,7 +91,7 @@
         <select
           class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           value={selectedWidget.gauge_type}
-          on:change={(e) => updateGaugeType(e.currentTarget.value)}
+          onchange={(e) => updateGaugeType(e.currentTarget.value)}
         >
           {#each gaugeTypes as gaugeType}
             <option value={gaugeType.value}>{gaugeType.label}</option>
@@ -104,7 +106,7 @@
     <!-- Display Options -->
     <div class="space-y-4">
       <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Display Options</h3>
-      
+
       <!-- Show Label -->
       <div class="flex items-center justify-between">
         <label class="text-sm text-[var(--theme-text)]">Show Label</label>
@@ -112,7 +114,7 @@
           type="checkbox"
           class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
           checked={selectedWidget.show_label}
-          on:change={(e) => updateWidget({ show_label: e.currentTarget.checked })}
+          onchange={(e) => updateWidget({ show_label: e.currentTarget.checked })}
         />
       </div>
 
@@ -127,7 +129,7 @@
             class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Leave empty to use sensor name"
             value={selectedWidget.custom_label || ''}
-            on:input={(e) => updateWidget({ custom_label: e.currentTarget.value || undefined })}
+            oninput={(e) => updateWidget({ custom_label: e.currentTarget.value || undefined })}
           />
         </div>
       {/if}
@@ -139,7 +141,7 @@
           type="checkbox"
           class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
           checked={selectedWidget.show_unit}
-          on:change={(e) => updateWidget({ show_unit: e.currentTarget.checked })}
+          onchange={(e) => updateWidget({ show_unit: e.currentTarget.checked })}
         />
       </div>
 
@@ -154,7 +156,7 @@
             class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Leave empty to use sensor unit"
             value={selectedWidget.custom_unit || ''}
-            on:input={(e) => updateWidget({ custom_unit: e.currentTarget.value || undefined })}
+            oninput={(e) => updateWidget({ custom_unit: e.currentTarget.value || undefined })}
           />
         </div>
       {/if}
@@ -163,7 +165,7 @@
     <!-- Position & Size -->
     <div class="space-y-4">
       <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Position & Size</h3>
-      
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="block text-xs text-[var(--theme-text-muted)] mb-1">X Position</label>
@@ -171,7 +173,7 @@
             type="number"
             class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
             value={selectedWidget.pos_x}
-            on:input={(e) => updateWidget({ pos_x: parseInt(e.currentTarget.value) || 0 })}
+            oninput={(e) => updateWidget({ pos_x: parseInt(e.currentTarget.value) || 0 })}
           />
         </div>
         <div>
@@ -180,7 +182,7 @@
             type="number"
             class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
             value={selectedWidget.pos_y}
-            on:input={(e) => updateWidget({ pos_y: parseInt(e.currentTarget.value) || 0 })}
+            oninput={(e) => updateWidget({ pos_y: parseInt(e.currentTarget.value) || 0 })}
           />
         </div>
         <div>
@@ -189,7 +191,7 @@
             type="number"
             class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
             value={selectedWidget.width}
-            on:input={(e) => updateWidget({ width: parseInt(e.currentTarget.value) || 100 })}
+            oninput={(e) => updateWidget({ width: parseInt(e.currentTarget.value) || 100 })}
           />
         </div>
         <div>
@@ -198,7 +200,7 @@
             type="number"
             class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
             value={selectedWidget.height}
-            on:input={(e) => updateWidget({ height: parseInt(e.currentTarget.value) || 100 })}
+            oninput={(e) => updateWidget({ height: parseInt(e.currentTarget.value) || 100 })}
           />
         </div>
       </div>
@@ -207,14 +209,14 @@
     <!-- Widget Lock -->
     <div class="space-y-4">
       <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Widget Behavior</h3>
-      
+
       <div class="flex items-center justify-between">
         <label class="text-sm text-[var(--theme-text)]">Lock Widget</label>
         <input
           type="checkbox"
           class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
           checked={selectedWidget.is_locked}
-          on:change={(e) => updateWidget({ is_locked: e.currentTarget.checked })}
+          onchange={(e) => updateWidget({ is_locked: e.currentTarget.checked })}
         />
       </div>
       <p class="text-xs text-[var(--theme-text-muted)]">
@@ -226,7 +228,7 @@
     {#if selectedWidget.gauge_type === 'radial'}
       <div class="space-y-4">
         <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Radial Gauge Settings</h3>
-        
+
         <div>
           <label class="block text-sm text-[var(--theme-text)] mb-1">Start Angle (degrees)</label>
           <input
@@ -235,10 +237,10 @@
             max="360"
             class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
             value={selectedWidget.gauge_settings.start_angle || 0}
-            on:input={(e) => updateGaugeSettings('start_angle', parseInt(e.currentTarget.value) || 0)}
+            oninput={(e) => updateGaugeSettings('start_angle', parseInt(e.currentTarget.value) || 0)}
           />
         </div>
-        
+
         <div>
           <label class="block text-sm text-[var(--theme-text)] mb-1">End Angle (degrees)</label>
           <input
@@ -247,42 +249,26 @@
             max="360"
             class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
             value={selectedWidget.gauge_settings.end_angle || 270}
-            on:input={(e) => updateGaugeSettings('end_angle', parseInt(e.currentTarget.value) || 270)}
+            oninput={(e) => updateGaugeSettings('end_angle', parseInt(e.currentTarget.value) || 270)}
           />
         </div>
       </div>
     {:else if selectedWidget.gauge_type === 'linear'}
       <div class="space-y-4">
         <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Linear Gauge Settings</h3>
-        
+
         <div>
           <label class="block text-sm text-[var(--theme-text)] mb-2">Orientation</label>
           <select
             class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
             value={selectedWidget.gauge_settings.orientation || 'horizontal'}
-            on:change={(e) => updateGaugeSettings('orientation', e.currentTarget.value)}
+            onchange={(e) => updateGaugeSettings('orientation', e.currentTarget.value)}
           >
             <option value="horizontal">Horizontal</option>
             <option value="vertical">Vertical</option>
           </select>
         </div>
       </div>
-    {:else if selectedWidget.gauge_type === 'graph'}
-      <div class="space-y-4">
-        <h3 class="text-sm font-medium text-[var(--theme-text)] uppercase tracking-wide">Graph Settings</h3>
-        
-        <div>
-          <label class="block text-sm text-[var(--theme-text)] mb-1">Time Range (seconds)</label>
-          <input
-            type="number"
-            min="10"
-            max="3600"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
-            value={selectedWidget.gauge_settings.time_range || 60}
-            on:input={(e) => updateGaugeSettings('time_range', parseInt(e.currentTarget.value) || 60)}
-          />
-        </div>
-      </div>
     {/if}
   {/if}
-</div> 
+</div>

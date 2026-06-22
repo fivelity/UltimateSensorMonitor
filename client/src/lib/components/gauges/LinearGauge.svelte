@@ -1,30 +1,29 @@
 <script lang="ts">
   import type { WidgetConfig, SensorData } from '$lib/types';
 
-  export let widget: WidgetConfig;
-  export let sensorData: SensorData | undefined;
+  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // Get display value and calculate percentage
-  $: value = typeof sensorData?.value === 'number' ? sensorData.value : 0;
-  $: minValue = sensorData?.min_value ?? 0;
-  $: maxValue = sensorData?.max_value ?? 100;
-  $: percentage = isFinite(value) && isFinite(minValue) && isFinite(maxValue) && (maxValue !== minValue)
+  const value = $derived(typeof sensorData?.value === 'number' ? sensorData.value : 0);
+  const minValue = $derived(sensorData?.min_value ?? 0);
+  const maxValue = $derived(sensorData?.max_value ?? 100);
+  const percentage = $derived(isFinite(value) && isFinite(minValue) && isFinite(maxValue) && (maxValue !== minValue)
     ? Math.min(100, Math.max(0, ((value - minValue) / (maxValue - minValue)) * 100))
-    : null;
+    : null);
   
   // Gauge settings with defaults
-  $: orientation = widget.gauge_settings?.orientation ?? 'horizontal';
-  $: showScale = widget.gauge_settings?.show_scale ?? true;
-  $: primaryColor = widget.gauge_settings?.color_primary ?? 'var(--theme-primary)';
-  $: secondaryColor = widget.gauge_settings?.color_secondary ?? 'var(--theme-secondary)';
+  const orientation = $derived(widget.gauge_settings?.orientation ?? 'horizontal');
+  const showScale = $derived(widget.gauge_settings?.show_scale ?? true);
+  const primaryColor = $derived(widget.gauge_settings?.color_primary ?? 'var(--theme-primary)');
+  const secondaryColor = $derived(widget.gauge_settings?.color_secondary ?? 'var(--theme-secondary)');
 
   // Format display value
-  $: formattedValue = typeof value === 'number' ? (Number.isInteger(value) ? value.toString() : value.toFixed(1)) : '--';
-  $: unit = widget.custom_unit || sensorData?.unit || '';
+  const formattedValue = $derived(typeof value === 'number' ? (Number.isInteger(value) ? value.toString() : value.toFixed(1)) : '--');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
   
   // Calculate dimensions based on orientation
-  $: isHorizontal = orientation === 'horizontal';
-  $: barThickness = isHorizontal ? Math.min(widget.height / 3, 20) : Math.min(widget.width / 3, 20);
+  const isHorizontal = $derived(orientation === 'horizontal');
+  const barThickness = $derived(isHorizontal ? Math.min(widget.height / 3, 20) : Math.min(widget.width / 3, 20));
 </script>
 
 <div class="gauge-container">

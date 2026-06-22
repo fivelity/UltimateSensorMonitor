@@ -1,23 +1,28 @@
 <script lang="ts">
   import type { WidgetConfig, SensorData } from '$lib/types';
 
-  export let widget: WidgetConfig;
-  export let sensorData: SensorData | undefined;
+  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // Get display value
-  $: displayValue = sensorData?.value ?? '--';
-  $: unit = widget.custom_unit || sensorData?.unit || '';
-  $: sensorName = widget.custom_label || sensorData?.name || 'Unknown Sensor';
+  const displayValue = $derived(sensorData?.value ?? '--');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
+  const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
 
   // Format the value based on its type
-  $: formattedValue = formatValue(displayValue);
-  $: validValue = displayValue !== null && displayValue !== undefined && displayValue !== '--' && displayValue !== '' && !Number.isNaN(displayValue);
+  const formattedValue = $derived(formatValue(displayValue));
+  const validValue = $derived(
+    displayValue !== null &&
+    displayValue !== undefined &&
+    displayValue !== '--' &&
+    displayValue !== '' &&
+    !Number.isNaN(displayValue)
+  );
 
-  function formatValue(value: any): string {
+  function formatValue(value: number | string): string {
     if (value === null || value === undefined || value === '--') {
       return '--';
     }
-    
+
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
         return value.toString();
@@ -25,20 +30,20 @@
         return value.toFixed(1);
       }
     }
-    
+
     return value.toString();
   }
 
   // Get text size based on widget size and information density
-  $: fontSize = Math.min(widget.width / 6, widget.height / 3);
-  $: titleSize = Math.max(fontSize * 0.4, 12);
+  const fontSize = $derived(Math.min(widget.width / 6, widget.height / 3));
+  const titleSize = $derived(Math.max(fontSize * 0.4, 12));
 </script>
 
 <div class="gauge-container text-center">
   <div class="flex flex-col h-full justify-center">
     <!-- Sensor Name -->
     {#if widget.show_label}
-      <div 
+      <div
         class="font-medium text-[var(--theme-text-muted)] mb-1 truncate"
         style="font-size: {titleSize}px; line-height: 1.2;"
       >
@@ -49,7 +54,7 @@
     <!-- Main Value -->
     <div class="flex-1 flex items-center justify-center">
       {#if validValue}
-        <div 
+        <div
           class="font-bold text-[var(--theme-text)]"
           style="font-size: {fontSize}px; line-height: 1;"
         >
@@ -64,7 +69,7 @@
 
     <!-- Unit -->
     {#if widget.show_unit && unit}
-      <div 
+      <div
         class="text-[var(--theme-text-muted)] opacity-75 truncate"
         style="font-size: {titleSize}px; line-height: 1.2;"
       >

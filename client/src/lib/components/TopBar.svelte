@@ -1,40 +1,45 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { 
-    editMode, 
-    selectedWidgets, 
-    widgets, 
-    widgetGroups, 
-    visualSettings, 
+  import {
+    editMode,
+    selectedWidgets,
+    widgets,
+    widgetGroups,
+    visualSettings,
     dashboardLayout,
-    storeUtils 
+    storeUtils
   } from '$lib/stores';
-  import { Download, Upload, Save, FolderOpen, Eye, Edit3, Grid3X3, Settings, RotateCcw, RotateCw } from 'lucide-svelte';
+  import { Download, Upload, Save, FolderOpen, Eye, Edit3, Grid3X3, Settings, RotateCcw, RotateCw } from '@lucide/svelte';
   import type { DashboardPreset } from '$lib/types';
   import { historyStore } from '$lib/stores/history';
-  import { get } from 'svelte/store';
 
-  const dispatch = createEventDispatcher();
+  const {
+    showLeftSidebar,
+    showRightSidebar,
+    ontoggleLeftSidebar,
+    ontoggleRightSidebar,
+  }: {
+    showLeftSidebar: boolean;
+    showRightSidebar: boolean;
+    ontoggleLeftSidebar?: () => void;
+    ontoggleRightSidebar?: () => void;
+  } = $props();
 
-  export let showLeftSidebar: boolean;
-  export let showRightSidebar: boolean;
-
-  let fileInput: HTMLInputElement;
+  let fileInput: HTMLInputElement | undefined = $state();
 
   // History state
-  $: canUndo = $historyStore.currentIndex >= 0;
-  $: canRedo = $historyStore.currentIndex < $historyStore.commands.length - 1;
+  const canUndo = $derived($historyStore.currentIndex >= 0);
+  const canRedo = $derived($historyStore.currentIndex < $historyStore.commands.length - 1);
 
   function toggleEditMode() {
     editMode.update(mode => mode === 'edit' ? 'view' : 'edit');
   }
 
   function toggleLeftSidebar() {
-    dispatch('toggle-left-sidebar');
+    ontoggleLeftSidebar?.();
   }
 
   function toggleRightSidebar() {
-    dispatch('toggle-right-sidebar');
+    ontoggleRightSidebar?.();
   }
 
   // Enhanced preset management
@@ -54,7 +59,7 @@
     const dataStr = JSON.stringify(preset, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = `${preset.name}.json`;
@@ -65,7 +70,7 @@
   }
 
   function triggerImport() {
-    fileInput.click();
+    fileInput?.click();
   }
 
   function handleFileImport(event: Event) {
@@ -89,23 +94,23 @@
     // Clear current widgets and groups
     storeUtils.clearAllWidgets();
     storeUtils.clearAllGroups();
-    
+
     // Import widgets
     preset.widgets.forEach(widget => {
       storeUtils.addWidget(widget);
     });
-    
+
     // Import groups
     preset.widget_groups.forEach(group => {
       storeUtils.addGroup(group);
     });
-    
+
     // Update visual settings
     visualSettings.set(preset.visual_settings);
-    
+
     // Update layout
     dashboardLayout.set(preset.layout);
-    
+
     console.log('Successfully imported preset:', preset.name);
   }
 
@@ -122,15 +127,15 @@
       version: '1.0'
     };
 
-    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]');
+    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]') as DashboardPreset[];
     savedPresets.push(preset);
     localStorage.setItem('ultimon_presets', JSON.stringify(savedPresets));
-    
+
     console.log('Preset saved locally');
   }
 
   function loadPresetFromLocal() {
-    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]');
+    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]') as DashboardPreset[];
     if (savedPresets.length > 0) {
       // For now, load the most recent preset
       const latestPreset = savedPresets[savedPresets.length - 1];
@@ -149,13 +154,13 @@
     <div class="text-lg font-bold text-[var(--theme-text)]">
       Ultimon
     </div>
-    
+
     <div class="h-6 border-l border-[var(--theme-border)]"></div>
-    
+
     <!-- Edit/View Mode Toggle -->
     <div class="flex items-center space-x-2">
       <button
-        on:click={toggleEditMode}
+        onclick={toggleEditMode}
         class="flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200"
         class:bg-blue-500={$editMode === 'edit'}
         class:text-white={$editMode === 'edit'}
@@ -181,31 +186,31 @@
     <!-- Preset Management -->
     <div class="flex items-center space-x-1">
       <button
-        on:click={savePresetToLocal}
+        onclick={savePresetToLocal}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         title="Save Preset Locally"
       >
         <Save size={16} />
       </button>
-      
+
       <button
-        on:click={loadPresetFromLocal}
+        onclick={loadPresetFromLocal}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         title="Load Local Preset"
       >
         <FolderOpen size={16} />
       </button>
-      
+
       <button
-        on:click={exportPreset}
+        onclick={exportPreset}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         title="Export Preset"
       >
         <Download size={16} />
       </button>
-      
+
       <button
-        on:click={triggerImport}
+        onclick={triggerImport}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         title="Import Preset"
       >
@@ -216,19 +221,19 @@
     <!-- Undo/Redo Controls -->
     {#if $editMode === 'edit'}
       <div class="h-6 border-l border-[var(--theme-border)]"></div>
-      
+
       <div class="flex items-center space-x-1">
         <button
-          on:click={() => historyStore.undo()}
+          onclick={() => historyStore.undo()}
           disabled={!canUndo}
           class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Undo (Ctrl+Z)"
         >
           <RotateCcw size={16} />
         </button>
-        
+
         <button
-          on:click={() => historyStore.redo()}
+          onclick={() => historyStore.redo()}
           disabled={!canRedo}
           class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title="Redo (Ctrl+Y)"
@@ -253,7 +258,7 @@
     <!-- Grid toggle -->
     {#if $editMode === 'edit'}
       <button
-        on:click={() => visualSettings.update(vs => ({ ...vs, show_grid: !vs.show_grid }))}
+        onclick={() => visualSettings.update(vs => ({ ...vs, show_grid: !vs.show_grid }))}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         class:bg-blue-500={$visualSettings.show_grid}
         class:text-white={$visualSettings.show_grid}
@@ -262,10 +267,10 @@
         <Grid3X3 size={16} />
       </button>
     {/if}
-    
+
     <!-- Sidebar toggles -->
     <button
-      on:click={toggleLeftSidebar}
+      onclick={toggleLeftSidebar}
       class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
       class:bg-[var(--theme-primary)]={showLeftSidebar}
       class:text-white={showLeftSidebar}
@@ -273,9 +278,9 @@
     >
       <span class="text-sm font-medium">Sensors</span>
     </button>
-    
+
     <button
-      on:click={toggleRightSidebar}
+      onclick={toggleRightSidebar}
       class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
       class:bg-[var(--theme-primary)]={showRightSidebar}
       class:text-white={showRightSidebar}
@@ -291,10 +296,10 @@
   bind:this={fileInput}
   type="file"
   accept=".json"
-  on:change={handleFileImport}
+  onchange={handleFileImport}
   class="hidden"
 />
 
 <style>
   /* Add any additional styling here */
-</style> 
+</style>

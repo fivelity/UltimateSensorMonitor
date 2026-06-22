@@ -1,79 +1,85 @@
 <script lang="ts">
   import '../app.css';
-  import { onMount, onDestroy } from 'svelte';
+  import type { Snippet } from 'svelte';
   import { initializeStores, visualSettings, connectionStatus, storeUtils, sensorSources, hardwareTree, availableSensors } from '$lib/stores';
   import { get } from 'svelte/store';
   import { websocketService } from '$lib/services/websocket';
   import { apiService } from '$lib/services/api';
 
-  let unsubscribeVisualSettings: () => void;
-  let websocketUnsubscribe: () => void;
+  const { children }: { children: Snippet } = $props();
 
-  onMount(async () => {
-    // Initialize stores when the app starts
-    initializeStores();
-    
-    // Fetch initial sensor sources and hardware tree
-    await loadInitialSensorData();
-    
-    // Start WebSocket connection (only in browser)
-    if (typeof window !== 'undefined') {
-      try {
-        websocketService.connect('ws://localhost:8100/ws');
-        
-        // Subscribe to WebSocket messages
-        websocketUnsubscribe = websocketService.subscribe((message: any) => {
-          if (message.type === 'sensor_data' && message.data) {
-            storeUtils.updateSensorData(message.data);
-          }
-        });
+  $effect(() => {
+    let unsubscribeVisualSettings: (() => void) | undefined;
+    let websocketUnsubscribe: (() => void) | undefined;
 
-        // Update connection status
-        websocketService.onConnectionChange((status: 'connecting' | 'connected' | 'disconnected' | 'error') => {
-          connectionStatus.set(status);
-        });
-      } catch (error) {
-        console.error('Failed to establish WebSocket connection:', error);
-        connectionStatus.set('error');
-      }
-    }
-    
-    // Apply initial visual settings to CSS variables
-    unsubscribeVisualSettings = visualSettings.subscribe(settings => {
-      if (typeof document !== 'undefined') {
-        const root = document.documentElement;
-        root.style.setProperty('--materiality', settings.materiality.toString());
-        root.style.setProperty('--information-density', settings.information_density.toString());
-        root.style.setProperty('--animation-level', settings.animation_level.toString());
-        root.style.setProperty('--grid-size', `${settings.grid_size}px`);
-        
-        // Apply theme class
-        document.body.className = document.body.className.replace(/theme-\w+/, '');
-        document.body.classList.add(`theme-${settings.color_scheme}`);
-        
-        // Apply font family
-        root.style.setProperty('--font-family', settings.font_family);
-        
-        // Apply reduced motion preference
-        if (settings.reduce_motion) {
-          document.body.classList.add('reduce-motion');
-        } else {
-          document.body.classList.remove('reduce-motion');
+    // Async initialization wrapped in an IIFE so $effect stays synchronous
+    (async () => {
+      // Initialize stores when the app starts
+      initializeStores();
+
+      // Fetch initial sensor sources and hardware tree
+      await loadInitialSensorData();
+
+      // Start WebSocket connection (only in browser)
+      if (typeof window !== 'undefined') {
+        try {
+          websocketService.connect('ws://localhost:8100/ws');
+
+          // Subscribe to WebSocket messages
+          websocketUnsubscribe = websocketService.subscribe((message: { type: string; data?: unknown }) => {
+            if (message.type === 'sensor_data' && message.data) {
+              storeUtils.updateSensorData(message.data);
+            }
+          });
+
+          // Update connection status
+          websocketService.onConnectionChange((status: 'connecting' | 'connected' | 'disconnected' | 'error') => {
+            connectionStatus.set(status);
+          });
+        } catch (error) {
+          console.error('Failed to establish WebSocket connection:', error);
+          connectionStatus.set('error');
         }
       }
-    });
-  });
 
-  onDestroy(() => {
-    if (unsubscribeVisualSettings) {
-      unsubscribeVisualSettings();
-    }
-    
-    if (websocketUnsubscribe) {
-      websocketUnsubscribe();
-    }
-    
-    websocketService.disconnect();
+      // Apply initial visual settings to CSS variables
+      unsubscribeVisualSettings = visualSettings.subscribe(settings => {
+        if (typeof document !== 'undefined') {
+          const root = document.documentElement;
+          root.style.setProperty('--materiality', settings.materiality.toString());
+          root.style.setProperty('--information-density', settings.information_density.toString());
+          root.style.setProperty('--animation-level', settings.animation_level.toString());
+          root.style.setProperty('--grid-size', `${settings.grid_size}px`);
+
+          // Apply theme class
+          document.body.className = document.body.className.replace(/theme-\w+/, '');
+          document.body.classList.add(`theme-${settings.color_scheme}`);
+
+          // Apply font family
+          root.style.setProperty('--font-family', settings.font_family);
+
+          // Apply reduced motion preference
+          if (settings.reduce_motion) {
+            document.body.classList.add('reduce-motion');
+          } else {
+            document.body.classList.remove('reduce-motion');
+          }
+        }
+      });
+    })();
+
+    // Cleanup function
+    return () => {
+      if (unsubscribeVisualSettings) {
+        unsubscribeVisualSettings();
+      }
+
+      if (websocketUnsubscribe) {
+        websocketUnsubscribe();
+      }
+
+      websocketService.disconnect();
+    };
   });
 
   async function loadInitialSensorData() {
@@ -82,7 +88,7 @@
     if (sourcesResponse.success && sourcesResponse.data) {
       storeUtils.updateSensorSources(sourcesResponse.data.sources);
       console.log('[Layout] Updated sensorSources store:', get(sensorSources));
-      
+
       const lhmUpdatedSource = sourcesResponse.data.sources['librehardware_updated'];
       if (lhmUpdatedSource && lhmUpdatedSource.active) {
         const treeResponse = await apiService.getHardwareTree();
@@ -99,7 +105,7 @@
 </script>
 
 <main class="min-h-screen bg-[var(--theme-background)] text-[var(--theme-text)] font-[var(--font-family)]">
-  <slot />
+  {@render children()}
 </main>
 
 <style>
@@ -108,4 +114,4 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-</style> 
+</style>

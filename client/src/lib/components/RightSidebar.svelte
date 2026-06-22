@@ -1,18 +1,19 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-  import { editMode, selectedWidgets, visualSettings, selectedWidgetConfigs } from '$lib/stores';
+  import { selectedWidgets } from '$lib/stores';
   import WidgetInspector from './WidgetInspector.svelte';
   import VisualDimensionsPanel from './VisualDimensionsPanel.svelte';
   import WidgetGroupManager from './WidgetGroupManager.svelte';
 
-  const dispatch = createEventDispatcher();
+  const { onclose }: { onclose?: () => void } = $props();
 
-  let activeTab: 'inspector' | 'visual' | 'groups' = 'inspector';
+  let activeTab: 'inspector' | 'visual' | 'groups' = $state('inspector');
 
   // Auto-switch to inspector when widgets are selected
-  $: if ($selectedWidgets.ids.length > 0) {
-    activeTab = 'inspector';
-  }
+  $effect(() => {
+    if ($selectedWidgets.ids.length > 0) {
+      activeTab = 'inspector';
+    }
+  });
 </script>
 
 <div class="h-full flex flex-col bg-[var(--theme-surface)] border-l border-[var(--theme-border)]">
@@ -20,7 +21,7 @@
   <div class="flex items-center justify-between p-4 border-b border-[var(--theme-border)]">
     <h2 class="text-lg font-semibold text-[var(--theme-text)]">Properties</h2>
     <button
-      on:click={() => dispatch('close')}
+      onclick={() => onclose?.()}
       class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)]"
       title="Close Properties Panel"
     >
@@ -36,7 +37,7 @@
       class="flex-1 px-3 py-2 text-xs font-medium transition-colors"
       class:active={activeTab === 'inspector'}
       class:inactive={activeTab !== 'inspector'}
-      on:click={() => activeTab = 'inspector'}
+      onclick={() => { activeTab = 'inspector'; }}
     >
       Inspector
     </button>
@@ -44,7 +45,7 @@
       class="flex-1 px-3 py-2 text-xs font-medium transition-colors"
       class:active={activeTab === 'visual'}
       class:inactive={activeTab !== 'visual'}
-      on:click={() => activeTab = 'visual'}
+      onclick={() => { activeTab = 'visual'; }}
     >
       Visual
     </button>
@@ -52,7 +53,7 @@
       class="flex-1 px-3 py-2 text-xs font-medium transition-colors"
       class:active={activeTab === 'groups'}
       class:inactive={activeTab !== 'groups'}
-      on:click={() => activeTab = 'groups'}
+      onclick={() => { activeTab = 'groups'; }}
     >
       Groups
     </button>
@@ -86,4 +87,4 @@
     background-color: var(--theme-background);
     color: var(--theme-text);
   }
-</style> 
+</style>

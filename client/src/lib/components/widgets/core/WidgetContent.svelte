@@ -1,7 +1,7 @@
 <script lang="ts">
   import { sensorData, availableSensors } from '$lib/stores';
   import type { WidgetConfig, SensorData } from '$lib/types';
-  
+
   // Import gauge components from existing location
   import TextGauge from '$lib/components/gauges/TextGauge.svelte';
   import RadialGauge from '$lib/components/gauges/RadialGauge.svelte';
@@ -9,20 +9,22 @@
   import GraphGauge from '$lib/components/gauges/GraphGauge.svelte';
   import ImageSequenceGauge from '$lib/components/gauges/ImageSequenceGauge.svelte';
   import GlassmorphicGauge from '$lib/components/gauges/GlassmorphicGauge.svelte';
-  
-  export let widget: WidgetConfig;
-  
+
+  const { widget }: { widget: WidgetConfig } = $props();
+
   // Get current sensor data for this widget
-  $: currentSensorData = $sensorData[widget.sensor_id] as SensorData | undefined;
-  $: sensorInfo = $availableSensors.find(s => s.id === widget.sensor_id);
-  
+  const currentSensorData = $derived($sensorData[widget.sensor_id] as SensorData | undefined);
+  const sensorInfo = $derived($availableSensors.find(s => s.id === widget.sensor_id));
+
   // Fallback to sensor info if current data is not available
-  $: displayData = currentSensorData || sensorInfo;
-  
+  const displayData = $derived(currentSensorData || sensorInfo);
+
   // Debug logging when configured
-  $: if (widget.id) {
-    console.log(`[WidgetContent ${widget.id}] Sensor: ${widget.sensor_id}, Data:`, displayData, 'Gauge:', widget.gauge_type);
-  }
+  $effect(() => {
+    if (widget.id) {
+      console.log(`[WidgetContent ${widget.id}] Sensor: ${widget.sensor_id}, Data:`, displayData, 'Gauge:', widget.gauge_type);
+    }
+  });
 </script>
 
 <div class="widget-content w-full h-full overflow-hidden">
@@ -65,15 +67,15 @@
     position: relative;
     pointer-events: auto;
   }
-  
+
   /* Ensure content doesn't interfere with widget interactions */
   .widget-content :global(*) {
     user-select: none;
   }
-  
+
   /* Performance optimizations */
   .widget-content {
     contain: layout style;
     will-change: contents;
   }
-</style> 
+</style>

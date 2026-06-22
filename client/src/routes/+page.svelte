@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { 
     editMode, 
     widgetArray, 
@@ -19,19 +18,22 @@
   import ConnectionStatus from '$lib/components/ConnectionStatus.svelte';
   import type { WidgetConfig } from '$lib/types';
 
-  let showLeftSidebar = false;
-  let showRightSidebar = false;
-  let hasCreatedInitialWidgets = false;
-  let leftSidebarComponent: any; // Reference to left sidebar component
+  // Suppress unused-import warning — connectionStatus is imported for type consistency with the layout
+  void connectionStatus;
 
-  onMount(() => {
+  let showLeftSidebar = $state(false);
+  let showRightSidebar = $state(false);
+  let hasCreatedInitialWidgets = $state(false);
+  let leftSidebarComponent: InstanceType<typeof LeftSidebar> | null = $state(null); // Reference to left sidebar component
+
+  $effect(() => {
     // Async initialization function
     const initializeApp = async () => {
       // Try to load real sensor data immediately
       const sensorsResult = await apiService.getSensors();
       if (sensorsResult.success && sensorsResult.data) {
         storeUtils.updateSensorSources(sensorsResult.data.sources);
-        
+
         // Wait a moment for stores to update, then create initial widgets
         setTimeout(() => {
           createInitialWidgetsFromRealData();
@@ -40,10 +42,10 @@
         // If real sensors aren't available, fall back to demo data
         console.warn('Real sensor data not available, loading demo data...');
         const { demoSensorSources, demoSensorData, demoWidgets } = await import('$lib/demoData');
-        
+
         storeUtils.updateSensorSources(demoSensorSources);
         storeUtils.updateSensorData(demoSensorData);
-        
+
         demoWidgets.forEach(widget => {
           storeUtils.addWidget(widget);
         });
@@ -60,7 +62,7 @@
         storeUtils.clearSelection();
         storeUtils.hideContextMenu();
       }
-      
+
       // Toggle edit mode with 'E' key
       if (event.key === 'e' || event.key === 'E') {
         if (event.ctrlKey || event.metaKey) {
@@ -68,7 +70,7 @@
           editMode.update(mode => mode === 'edit' ? 'view' : 'edit');
         }
       }
-      
+
       // Delete selected widgets with Delete key
       if (event.key === 'Delete' && $editMode === 'edit') {
         const selection = $selectedWidgets;
@@ -77,7 +79,7 @@
           storeUtils.clearSelection();
         }
       }
-      
+
       // Select all with Ctrl+A
       if ((event.ctrlKey || event.metaKey) && event.key === 'a' && $editMode === 'edit') {
         event.preventDefault();
@@ -89,11 +91,18 @@
     };
 
     document.addEventListener('keydown', handleKeydown);
-    
+
     // Cleanup function
     return () => {
       document.removeEventListener('keydown', handleKeydown);
     };
+  });
+
+  // Watch for available sensors changes and create widgets when data becomes available
+  $effect(() => {
+    if ($availableSensors.length > 0 && !hasCreatedInitialWidgets) {
+      createInitialWidgetsFromRealData();
+    }
   });
 
   // Create initial widgets from real sensor data
@@ -256,11 +265,6 @@
     console.log(`[CreateWidgets] Created ${$widgetArray.length} initial widgets from real sensor data`);
   }
 
-  // Watch for available sensors changes and create widgets when data becomes available
-  $: if ($availableSensors.length > 0 && !hasCreatedInitialWidgets) {
-    createInitialWidgetsFromRealData();
-  }
-
   // Handle sidebar toggles
   function toggleLeftSidebar() {
     showLeftSidebar = !showLeftSidebar;
@@ -281,15 +285,14 @@
   }
 
   // Handle find in sidebar from context menu
-  function handleFindInSidebar(event: CustomEvent) {
-    const { sensorId } = event.detail;
+  function handleFindInSidebar(sensorId: string) {
     console.log('[FindInSidebar] Looking for sensor:', sensorId);
-    
+
     // Ensure left sidebar is open
     if (!showLeftSidebar) {
       showLeftSidebar = true;
     }
-    
+
     // Call the sidebar function after a short delay to ensure it's rendered
     setTimeout(() => {
       if (leftSidebarComponent?.findSensorInSidebar) {
@@ -299,13 +302,13 @@
   }
 </script>
 
-<svelte:document on:click={handleDocumentClick} />
+<svelte:document onclick={handleDocumentClick} />
 
 <div class="flex flex-col h-screen overflow-hidden bg-[var(--theme-background)]">
   <!-- Top Bar -->
   <TopBar 
-    on:toggle-left-sidebar={toggleLeftSidebar}
-    on:toggle-right-sidebar={toggleRightSidebar}
+    ontoggleLeftSidebar={toggleLeftSidebar}
+    ontoggleRightSidebar={toggleRightSidebar}
     {showLeftSidebar}
     {showRightSidebar}
   />
@@ -315,14 +318,14 @@
     <!-- Left Sidebar -->
     {#if showLeftSidebar}
       <div class="w-80 border-r border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300">
-        <LeftSidebar bind:this={leftSidebarComponent} on:close={() => showLeftSidebar = false} />
+        <LeftSidebar bind:this={leftSidebarComponent} onclose={() => { showLeftSidebar = false; }} />
       </div>
     {/if}
 
     <!-- Dashboard Canvas -->
     <div class="flex-1 relative overflow-hidden">
       <DashboardCanvas />
-      
+
       <!-- Grid overlay when in edit mode and grid is enabled -->
       {#if $editMode === 'edit' && $visualSettings.show_grid}
         <div class="absolute inset-0 pointer-events-none micro-grid opacity-30"></div>
@@ -332,7 +335,7 @@
     <!-- Right Sidebar -->
     {#if showRightSidebar}
       <div class="w-80 border-l border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300">
-        <RightSidebar on:close={() => showRightSidebar = false} />
+        <RightSidebar onclose={() => { showRightSidebar = false; }} />
       </div>
     {/if}
   </div>
@@ -343,7 +346,7 @@
       x={$contextMenu.x} 
       y={$contextMenu.y} 
       target={$contextMenu.target}
-      on:find-in-sidebar={handleFindInSidebar}
+      onfindInSidebar={handleFindInSidebar}
     />
   {/if}
 
@@ -374,4 +377,4 @@
   :global(.sidebar-content::-webkit-scrollbar-thumb:hover) {
     background: var(--theme-text-muted);
   }
-</style> 
+</style>

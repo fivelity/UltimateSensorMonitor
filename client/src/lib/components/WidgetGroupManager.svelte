@@ -1,20 +1,17 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { 
     widgets, 
     widgetGroups, 
     selectedWidgets, 
     storeUtils 
   } from '$lib/stores';
-  import { Users, Download, Upload, Plus, Trash2, Edit2 } from 'lucide-svelte';
+  import { Users, Download, Upload, Plus, Trash2, Edit2 } from '@lucide/svelte';
   import type { WidgetGroup, WidgetConfig } from '$lib/types';
 
-  const dispatch = createEventDispatcher();
-
-  let showCreateDialog = false;
-  let editingGroup: WidgetGroup | null = null;
-  let newGroupName = '';
-  let newGroupDescription = '';
+  let showCreateDialog = $state(false);
+  let editingGroup = $state<WidgetGroup | null>(null);
+  let newGroupName = $state('');
+  let newGroupDescription = $state('');
 
   // Create a new group from selected widgets
   function createGroupFromSelection() {
@@ -109,7 +106,10 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const importData = JSON.parse(e.target?.result as string);
+          const result = e.target?.result;
+          if (typeof result !== 'string') return;
+
+          const importData = JSON.parse(result) as { group: WidgetGroup; widgets: WidgetConfig[] };
           
           if (importData.group && importData.widgets) {
             // Generate new IDs to avoid conflicts
@@ -140,7 +140,7 @@
             Object.entries(newGroup.relative_positions).forEach(([oldId, pos]) => {
               const newId = oldToNewIds[oldId];
               if (newId) {
-                newRelativePositions[newId] = pos as { x: number; y: number };
+                newRelativePositions[newId] = pos;
               }
             });
 
@@ -195,7 +195,7 @@
     
     <div class="flex items-center gap-2">
       <button
-        on:click={() => showCreateDialog = true}
+        onclick={() => showCreateDialog = true}
         disabled={$selectedWidgets.type !== 'widget' || $selectedWidgets.ids.length < 2}
         class="px-3 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
         title="Create group from selected widgets"
@@ -205,7 +205,7 @@
       </button>
       
       <button
-        on:click={importGroup}
+        onclick={importGroup}
         class="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center gap-1"
         title="Import group from file"
       >
@@ -236,7 +236,7 @@
           
           <div class="flex items-center gap-1">
             <button
-              on:click={() => selectGroup(group)}
+              onclick={() => selectGroup(group)}
               class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
               title="Select group widgets"
             >
@@ -244,7 +244,7 @@
             </button>
             
             <button
-              on:click={() => exportGroup(group)}
+              onclick={() => exportGroup(group)}
               class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
               title="Export group"
             >
@@ -252,7 +252,7 @@
             </button>
             
             <button
-              on:click={() => editingGroup = group}
+              onclick={() => editingGroup = group}
               class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
               title="Edit group"
             >
@@ -260,7 +260,7 @@
             </button>
             
             <button
-              on:click={() => ungroupWidgets(group.id)}
+              onclick={() => ungroupWidgets(group.id)}
               class="p-1 text-red-500 hover:text-red-600 transition-colors"
               title="Ungroup widgets"
             >
@@ -315,13 +315,13 @@
       
       <div class="flex justify-end gap-2 mt-6">
         <button
-          on:click={() => showCreateDialog = false}
+          onclick={() => showCreateDialog = false}
           class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)]"
         >
           Cancel
         </button>
         <button
-          on:click={createGroupFromSelection}
+          onclick={createGroupFromSelection}
           class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
         >
           Create Group
@@ -363,13 +363,13 @@
       
       <div class="flex justify-end gap-2 mt-6">
         <button
-          on:click={() => editingGroup = null}
+          onclick={() => editingGroup = null}
           class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)]"
         >
           Cancel
         </button>
         <button
-          on:click={() => {
+          onclick={() => {
             if (editingGroup) {
               storeUtils.updateGroup(editingGroup.id, {
                 name: editingGroup.name,
@@ -385,4 +385,4 @@
       </div>
     </div>
   </div>
-{/if} 
+{/if}

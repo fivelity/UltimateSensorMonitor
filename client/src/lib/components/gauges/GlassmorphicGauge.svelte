@@ -1,55 +1,55 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { WidgetConfig, SensorData } from '$lib/types';
 
-  export let widget: WidgetConfig;
-  export let sensorData: SensorData | undefined;
+  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // Gauge settings with defaults
-  $: glow_intensity = widget.gauge_settings.glow_intensity || 0.5;
-  $: blur_level = widget.gauge_settings.blur_level || 0.3;
-  $: transparency = widget.gauge_settings.transparency || 0.8;
-  $: primary_color = widget.gauge_settings.color_primary || 'var(--theme-primary)';
-  $: secondary_color = widget.gauge_settings.color_secondary || 'var(--theme-secondary)';
-  $: gauge_style = widget.gauge_settings.style || 'radial'; // 'radial' | 'linear' | 'ring'
-  
+  const glow_intensity = $derived(widget.gauge_settings.glow_intensity || 0.5);
+  const blur_level = $derived(widget.gauge_settings.blur_level || 0.3);
+  const transparency = $derived(widget.gauge_settings.transparency || 0.8);
+  const primary_color = $derived(widget.gauge_settings.color_primary || 'var(--theme-primary)');
+  const secondary_color = $derived(widget.gauge_settings.color_secondary || 'var(--theme-secondary)');
+  const gauge_style = $derived(widget.gauge_settings.style || 'radial'); // 'radial' | 'linear' | 'ring'
+
   // Data processing
-  $: sensorName = widget.custom_label || sensorData?.name || 'Unknown Sensor';
-  $: unit = widget.custom_unit || sensorData?.unit || '';
-  $: displayValue = sensorData?.value ?? '--';
-  $: minValue = widget.gauge_settings.min_value || sensorData?.min_value || 0;
-  $: maxValue = widget.gauge_settings.max_value || sensorData?.max_value || 100;
-  
+  const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
+  const displayValue = $derived(sensorData?.value ?? '--');
+  const minValue = $derived(widget.gauge_settings.min_value || sensorData?.min_value || 0);
+  const maxValue = $derived(widget.gauge_settings.max_value || sensorData?.max_value || 100);
+
   // Calculate normalized value (0-1)
-  $: normalizedValue = typeof displayValue === 'number' 
-    ? Math.max(0, Math.min(1, (displayValue - minValue) / (maxValue - minValue)))
-    : 0;
-  
+  const normalizedValue = $derived(
+    typeof displayValue === 'number'
+      ? Math.max(0, Math.min(1, (displayValue - minValue) / (maxValue - minValue)))
+      : 0
+  );
+
   // Calculate percentage for display
-  $: percentageValue = Math.round(normalizedValue * 100);
-  
+  const percentageValue = $derived(Math.round(normalizedValue * 100));
+
   // Dynamic styling based on value
-  $: valueColor = getValueColor(normalizedValue);
-  $: glowColor = getGlowColor(normalizedValue);
-  
+  const valueColor = $derived(getValueColor(normalizedValue));
+  const glowColor = $derived(getGlowColor(normalizedValue));
+
   function getValueColor(value: number): string {
     if (value < 0.3) return '#10b981'; // Green
-    if (value < 0.7) return '#f59e0b'; // Yellow  
+    if (value < 0.7) return '#f59e0b'; // Yellow
     return '#ef4444'; // Red
   }
-  
+
   function getGlowColor(value: number): string {
     if (value < 0.3) return '16, 185, 129'; // Green RGB
     if (value < 0.7) return '245, 158, 11'; // Yellow RGB
     return '239, 68, 68'; // Red RGB
   }
-  
+
   // Animation values
-  let mountedValue = 0;
-  let animationProgress = 0;
-  
-  onMount(() => {
+  let animationProgress = $state(0);
+
+  $effect(() => {
     // Animate to current value on mount
+    let mountedValue = 0;
     const animate = () => {
       if (mountedValue < normalizedValue) {
         mountedValue = Math.min(mountedValue + 0.02, normalizedValue);
@@ -61,19 +61,19 @@
     };
     animate();
   });
-  
+
   // Update animation when value changes
-  $: {
+  $effect(() => {
     if (typeof normalizedValue === 'number') {
       const targetValue = normalizedValue;
       const currentValue = animationProgress;
       const diff = targetValue - currentValue;
-      
+
       if (Math.abs(diff) > 0.01) {
         const animate = () => {
           const step = diff * 0.1;
           animationProgress += step;
-          
+
           if (Math.abs(targetValue - animationProgress) > 0.01) {
             requestAnimationFrame(animate);
           } else {
@@ -83,12 +83,12 @@
         animate();
       }
     }
-  }
+  });
 </script>
 
 <div class="glassmorphic-gauge" class:show-blur={blur_level > 0}>
   <!-- Background Glass Effect -->
-  <div 
+  <div
     class="glass-background"
     style="
       backdrop-filter: blur({blur_level * 20}px);
@@ -96,14 +96,14 @@
       border: 1px solid rgba(255, 255, 255, {transparency * 0.2});
     "
   ></div>
-  
+
   <!-- Title -->
   {#if widget.show_label}
     <div class="gauge-title">
       {sensorName}
     </div>
   {/if}
-  
+
   <!-- Main Gauge Content -->
   <div class="gauge-content">
     {#if gauge_style === 'radial'}
@@ -120,7 +120,7 @@
             stroke-width="8"
             stroke-linecap="round"
           />
-          
+
           <!-- Progress Arc -->
           <circle
             cx="60"
@@ -138,7 +138,7 @@
               transition: stroke-dashoffset 0.3s ease;
             "
           />
-          
+
           <!-- Center Glow -->
           <circle
             cx="60"
@@ -148,7 +148,7 @@
             style="filter: blur({blur_level * 5}px);"
           />
         </svg>
-        
+
         <!-- Center Value -->
         <div class="center-value">
           <div class="value-text" style="color: {valueColor};">
@@ -161,12 +161,12 @@
           {/if}
         </div>
       </div>
-      
+
     {:else if gauge_style === 'linear'}
       <!-- Linear Gauge -->
       <div class="linear-gauge">
         <div class="linear-track">
-          <div 
+          <div
             class="linear-progress"
             style="
               width: {animationProgress * 100}%;
@@ -175,7 +175,7 @@
             "
           ></div>
         </div>
-        
+
         <div class="linear-value">
           <span class="value-text" style="color: {valueColor};">
             {displayValue}
@@ -185,13 +185,13 @@
           {/if}
         </div>
       </div>
-      
+
     {:else if gauge_style === 'ring'}
       <!-- Ring Gauge -->
       <div class="ring-gauge">
         <div class="ring-container">
           <!-- Outer Ring -->
-          <div 
+          <div
             class="ring-outer"
             style="
               background: conic-gradient(
@@ -204,7 +204,7 @@
               filter: blur({blur_level * 2}px) drop-shadow(0 0 {glow_intensity * 8}px rgba({glowColor}, {glow_intensity}));
             "
           ></div>
-          
+
           <!-- Inner Content -->
           <div class="ring-inner">
             <div class="ring-value">
@@ -220,7 +220,7 @@
       </div>
     {/if}
   </div>
-  
+
   <!-- Bottom Info -->
   <div class="gauge-info">
     <div class="info-item">
@@ -232,12 +232,12 @@
       <span class="info-value">{maxValue}</span>
     </div>
   </div>
-  
+
   <!-- Floating Particles Effect -->
   {#if glow_intensity > 0.7}
     <div class="particles">
       {#each Array(6) as _, i}
-        <div 
+        <div
           class="particle"
           style="
             animation-delay: {i * 0.3}s;
@@ -261,7 +261,7 @@
     padding: 12px;
     font-family: var(--theme-font-family, 'Inter');
   }
-  
+
   .glass-background {
     position: absolute;
     inset: 0;
@@ -269,7 +269,7 @@
     z-index: -1;
     transition: all 0.3s ease;
   }
-  
+
   .gauge-title {
     text-align: center;
     font-size: 0.75rem;
@@ -278,7 +278,7 @@
     margin-bottom: 8px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
-  
+
   .gauge-content {
     flex: 1;
     display: flex;
@@ -286,7 +286,7 @@
     justify-content: center;
     position: relative;
   }
-  
+
   /* Radial Gauge Styles */
   .radial-gauge {
     position: relative;
@@ -294,12 +294,12 @@
     max-width: 120px;
     aspect-ratio: 1;
   }
-  
+
   .gauge-svg {
     width: 100%;
     height: 100%;
   }
-  
+
   .center-value {
     position: absolute;
     top: 50%;
@@ -307,20 +307,20 @@
     transform: translate(-50%, -50%);
     text-align: center;
   }
-  
+
   .value-text {
     font-size: 1.25rem;
     font-weight: 700;
     text-shadow: 0 0 10px currentColor;
     margin-bottom: 2px;
   }
-  
+
   .unit-text {
     font-size: 0.6rem;
     color: rgba(255, 255, 255, 0.7);
     font-weight: 500;
   }
-  
+
   /* Linear Gauge Styles */
   .linear-gauge {
     width: 100%;
@@ -328,7 +328,7 @@
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .linear-track {
     width: 100%;
     height: 12px;
@@ -337,38 +337,38 @@
     overflow: hidden;
     position: relative;
   }
-  
+
   .linear-progress {
     height: 100%;
     border-radius: 6px;
     transition: width 0.5s ease, box-shadow 0.3s ease;
     position: relative;
   }
-  
+
   .linear-value {
     text-align: center;
   }
-  
+
   /* Ring Gauge Styles */
   .ring-gauge {
     width: 100%;
     max-width: 100px;
     aspect-ratio: 1;
   }
-  
+
   .ring-container {
     position: relative;
     width: 100%;
     height: 100%;
   }
-  
+
   .ring-outer {
     width: 100%;
     height: 100%;
     border-radius: 50%;
     transition: all 0.5s ease;
   }
-  
+
   .ring-inner {
     position: absolute;
     top: 20%;
@@ -382,17 +382,17 @@
     justify-content: center;
     backdrop-filter: blur(5px);
   }
-  
+
   .ring-value {
     text-align: center;
   }
-  
+
   .sensor-name {
     font-size: 0.5rem;
     color: rgba(255, 255, 255, 0.7);
     margin-top: 2px;
   }
-  
+
   /* Bottom Info */
   .gauge-info {
     display: flex;
@@ -401,26 +401,26 @@
     padding-top: 8px;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
-  
+
   .info-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
   }
-  
+
   .info-label {
     font-size: 0.6rem;
     color: rgba(255, 255, 255, 0.6);
     font-weight: 500;
   }
-  
+
   .info-value {
     font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.8);
     font-weight: 600;
   }
-  
+
   /* Particle Effects */
   .particles {
     position: absolute;
@@ -429,7 +429,7 @@
     overflow: hidden;
     border-radius: 16px;
   }
-  
+
   .particle {
     position: absolute;
     width: 4px;
@@ -438,14 +438,14 @@
     opacity: 0;
     animation: float 3s infinite ease-in-out;
   }
-  
+
   .particle:nth-child(1) { top: 20%; left: 10%; }
   .particle:nth-child(2) { top: 40%; right: 15%; }
   .particle:nth-child(3) { bottom: 30%; left: 20%; }
   .particle:nth-child(4) { top: 60%; left: 50%; }
   .particle:nth-child(5) { bottom: 20%; right: 25%; }
   .particle:nth-child(6) { top: 15%; left: 70%; }
-  
+
   @keyframes float {
     0%, 100% {
       opacity: 0;
@@ -456,15 +456,15 @@
       transform: translateY(-20px) scale(1);
     }
   }
-  
+
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .value-text {
       font-size: 1rem;
     }
-    
+
     .gauge-title {
       font-size: 0.7rem;
     }
   }
-</style> 
+</style>

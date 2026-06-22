@@ -1,14 +1,16 @@
 <script lang="ts">
-  export let isSelected: boolean = false;
-  export let isLocked: boolean = false;
-  export let canEdit: boolean = false;
-  
+  const { isSelected = false, isLocked = false, canEdit = false }: {
+    isSelected?: boolean;
+    isLocked?: boolean;
+    canEdit?: boolean;
+  } = $props();
+
   // Reactive classes for different states
-  $: borderClass = getBorderClass(isSelected, isLocked, canEdit);
-  
+  const borderClass = $derived(getBorderClass(isSelected, isLocked, canEdit));
+
   function getBorderClass(selected: boolean, locked: boolean, editMode: boolean): string {
     const classes = ['widget-border'];
-    
+
     if (selected && editMode) {
       classes.push('border-selected');
     } else if (editMode) {
@@ -16,11 +18,11 @@
     } else {
       classes.push('border-view-mode');
     }
-    
+
     if (locked) {
       classes.push('border-locked');
     }
-    
+
     return classes.join(' ');
   }
 </script>
@@ -30,7 +32,7 @@
   {#if isSelected && canEdit}
     <div class="selection-indicator"></div>
   {/if}
-  
+
   <!-- Lock indicator -->
   {#if isLocked}
     <div class="lock-indicator">
@@ -49,52 +51,52 @@
     border-radius: 6px;
     transition: all 0.2s ease;
   }
-  
+
   /* View mode - subtle border */
   .border-view-mode {
     border: 1px solid transparent;
     background: rgba(255, 255, 255, 0.02);
   }
-  
+
   .border-view-mode:hover {
     border-color: rgba(var(--theme-border-rgb), 0.3);
     background: rgba(255, 255, 255, 0.05);
   }
-  
+
   /* Edit mode - visible border */
   .border-edit-mode {
     border: 1px solid rgba(var(--theme-border-rgb), 0.4);
     background: rgba(255, 255, 255, 0.03);
   }
-  
+
   .border-edit-mode:hover {
     border-color: rgba(var(--theme-border-rgb), 0.6);
     background: rgba(255, 255, 255, 0.08);
   }
-  
+
   /* Selected state */
   .border-selected {
     border: 2px solid var(--theme-primary);
     background: rgba(var(--theme-primary-rgb), 0.05);
-    box-shadow: 
+    box-shadow:
       0 0 0 1px rgba(var(--theme-primary-rgb), 0.2),
       0 2px 8px rgba(var(--theme-primary-rgb), 0.15);
   }
-  
+
   /* Locked state */
   .border-locked {
     border-style: dashed;
     opacity: 0.8;
   }
-  
+
   .border-locked.border-selected {
     border-color: #f59e0b;
     background: rgba(245, 158, 11, 0.05);
-    box-shadow: 
+    box-shadow:
       0 0 0 1px rgba(245, 158, 11, 0.2),
       0 2px 8px rgba(245, 158, 11, 0.15);
   }
-  
+
   /* Selection indicator */
   .selection-indicator {
     position: absolute;
@@ -107,7 +109,7 @@
     opacity: 0.6;
     animation: pulse-selection 2s infinite;
   }
-  
+
   /* Lock indicator */
   .lock-indicator {
     position: absolute;
@@ -125,7 +127,7 @@
     backdrop-filter: blur(4px);
     z-index: 10;
   }
-  
+
   /* Animations */
   @keyframes pulse-selection {
     0%, 100% {
@@ -137,31 +139,31 @@
       transform: scale(1.02);
     }
   }
-  
+
   /* Dark mode adjustments */
   :global(.dark) .border-view-mode {
     background: rgba(255, 255, 255, 0.01);
   }
-  
+
   :global(.dark) .border-view-mode:hover {
     background: rgba(255, 255, 255, 0.03);
   }
-  
+
   :global(.dark) .border-edit-mode {
     background: rgba(255, 255, 255, 0.02);
   }
-  
+
   :global(.dark) .border-edit-mode:hover {
     background: rgba(255, 255, 255, 0.05);
   }
-  
+
   /* Performance optimizations */
   .widget-border {
     will-change: border-color, background, box-shadow;
     contain: layout style;
   }
-  
+
   .selection-indicator {
     will-change: opacity, transform;
   }
-</style> 
+</style>

@@ -1,38 +1,44 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { WidgetConfig, SensorData } from '$lib/types';
 
-  export let widget: WidgetConfig;
-  export let sensorData: SensorData | undefined;
+  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
-  let currentImageIndex = 0;
-  let images: HTMLImageElement[] = [];
-  let imagesLoaded = false;
+  let currentImageIndex = $state(0);
+  let images: HTMLImageElement[] = $state([]);
+  let imagesLoaded = $state(false);
 
   // Image sequence settings with defaults
-  $: imageSequence = widget.gauge_settings.image_sequence || [];
-  $: animationSpeed = widget.gauge_settings.animation_speed || 1; // frames per second
-  $: minValue = widget.gauge_settings.min_value || sensorData?.min_value || 0;
-  $: maxValue = widget.gauge_settings.max_value || sensorData?.max_value || 100;
+  const imageSequence = $derived((widget.gauge_settings.image_sequence as string[] | undefined) || []);
+  const animationSpeed = $derived((widget.gauge_settings.animation_speed as number | undefined) || 1); // frames per second
+  const minValue = $derived((widget.gauge_settings.min_value as number | undefined) ?? sensorData?.min_value ?? 0);
+  const maxValue = $derived((widget.gauge_settings.max_value as number | undefined) ?? sensorData?.max_value ?? 100);
 
-  $: sensorName = widget.custom_label || sensorData?.name || 'Unknown Sensor';
-  $: unit = widget.custom_unit || sensorData?.unit || '';
-  $: displayValue = sensorData?.value ?? '--';
+  const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
+  const displayValue = $derived(sensorData?.value ?? '--');
 
   // Calculate current image based on sensor value
-  $: {
+  $effect(() => {
     if (imagesLoaded && imageSequence.length > 0 && typeof displayValue === 'number') {
       const normalizedValue = Math.max(0, Math.min(1, (displayValue - minValue) / (maxValue - minValue)));
       currentImageIndex = Math.floor(normalizedValue * (imageSequence.length - 1));
     }
-  }
+  });
 
   // Load images when image sequence changes
-  $: {
+  $effect(() => {
     if (imageSequence.length > 0) {
       loadImages();
     }
-  }
+    // Cleanup object URLs when component is destroyed
+    return () => {
+      imageSequence.forEach((url: string) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  });
 
   async function loadImages() {
     imagesLoaded = false;
@@ -61,7 +67,7 @@
     if (input.files) {
       const files = Array.from(input.files);
       const imageUrls = files.map(file => URL.createObjectURL(file));
-      
+
       // Update widget settings with new image sequence
       // Note: In a real app, you'd want to upload these to a server
       // For now, we'll use object URLs which will work in the current session
@@ -71,17 +77,6 @@
       };
     }
   }
-
-  onMount(() => {
-    // Cleanup object URLs when component is destroyed
-    return () => {
-      imageSequence.forEach((url: string) => {
-        if (url.startsWith('blob:')) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
-  });
 </script>
 
 <div class="gauge-container">
@@ -105,12 +100,12 @@
         </div>
         <label class="btn-upload cursor-pointer inline-block px-3 py-1 bg-[var(--theme-primary)] text-white rounded text-xs hover:opacity-80">
           Upload Images
-          <input 
-            type="file" 
-            multiple 
-            accept="image/*" 
-            class="hidden" 
-            on:change={handleImageUpload}
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            class="hidden"
+            onchange={handleImageUpload}
           />
         </label>
       </div>
@@ -124,16 +119,16 @@
       </div>
     {:else if images[currentImageIndex]}
       <!-- Current image -->
-      <img 
+      <img
         src={images[currentImageIndex].src}
         alt="Sensor visualization"
         class="max-w-full max-h-full object-contain"
       />
-      
+
       <!-- Progress indicator -->
       <div class="absolute bottom-1 left-1 right-1">
         <div class="bg-black bg-opacity-30 rounded-full h-1 overflow-hidden">
-          <div 
+          <div
             class="h-full bg-[var(--theme-primary)] transition-all duration-300"
             style="width: {((currentImageIndex + 1) / imageSequence.length) * 100}%"
           ></div>
@@ -150,7 +145,7 @@
         <span class="text-xs text-[var(--theme-text-muted)] ml-1">{unit}</span>
       {/if}
     </div>
-    
+
     {#if imageSequence.length > 0}
       <div class="text-xs text-[var(--theme-text-muted)] mt-1">
         Frame {currentImageIndex + 1} of {imageSequence.length}
@@ -165,12 +160,12 @@
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
         </svg>
-        <input 
-          type="file" 
-          multiple 
-          accept="image/*" 
-          class="hidden" 
-          on:change={handleImageUpload}
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          class="hidden"
+          onchange={handleImageUpload}
         />
       </label>
     </div>
@@ -202,4 +197,4 @@
     justify-content: center;
     align-items: center;
   }
-</style> 
+</style>

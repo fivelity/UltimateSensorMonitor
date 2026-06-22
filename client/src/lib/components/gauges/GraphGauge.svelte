@@ -1,35 +1,29 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
   import type { WidgetConfig, SensorData } from '$lib/types';
   import * as d3 from 'd3';
 
-  export let widget: WidgetConfig;
-  export let sensorData: SensorData | undefined;
+  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
-  let svgElement: SVGElement;
-  let dataHistory: { timestamp: Date; value: number }[] = [];
-  let interval: number; // Changed from NodeJS.Timeout to number for browser compatibility
+  let svgElement: SVGElement | undefined = $state();
+  let dataHistory: { timestamp: Date; value: number }[] = $state([]);
 
   // Graph settings with defaults
-  $: timeRange = widget.gauge_settings.time_range || 60; // seconds
-  $: lineColor = widget.gauge_settings.line_color || 'var(--theme-primary)';
-  $: fillArea = widget.gauge_settings.fill_area || false;
-  $: showPoints = widget.gauge_settings.show_points || false;
+  const timeRange = $derived(widget.gauge_settings.time_range || 60); // seconds
+  const lineColor = $derived(widget.gauge_settings.line_color || 'var(--theme-primary)');
+  const fillArea = $derived(widget.gauge_settings.fill_area || false);
+  const showPoints = $derived(widget.gauge_settings.show_points || false);
 
   // Responsive dimensions
-  $: width = widget.width - 16; // Account for padding
-  $: height = widget.height - 32; // Account for padding and labels
-  $: sensorName = widget.custom_label || sensorData?.name || 'Unknown Sensor';
-  $: unit = widget.custom_unit || sensorData?.unit || '';
+  const width = $derived(widget.width - 16); // Account for padding
+  const height = $derived(widget.height - 32); // Account for padding and labels
+  const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
 
   // Data collection and management
   function addDataPoint() {
     if (sensorData?.value !== undefined && typeof sensorData.value === 'number') {
       const now = new Date();
-      dataHistory.push({
-        timestamp: now,
-        value: sensorData.value
-      });
+      dataHistory = [...dataHistory, { timestamp: now, value: sensorData.value as number }];
 
       // Remove old data points outside the time range
       const cutoffTime = new Date(now.getTime() - timeRange * 1000);
@@ -110,7 +104,7 @@
     g.append('g')
       .attr('transform', `translate(0,${innerHeight})`)
       .call(d3.axisBottom(xScale)
-        .tickFormat(d3.timeFormat('%H:%M'))
+        .tickFormat(d3.timeFormat('%H:%M') as (domainValue: Date | d3.NumberValue, index: number) => string)
         .ticks(3))
       .selectAll('text')
       .style('font-size', '10px')
@@ -128,24 +122,24 @@
       .style('stroke', 'var(--theme-border)');
   }
 
-  onMount(() => {
+  $effect(() => {
     // Start collecting data every second
-    interval = setInterval(addDataPoint, 1000);
-    
+    const interval = setInterval(addDataPoint, 1000);
+
     // Add initial data point
     addDataPoint();
-  });
 
-  onDestroy(() => {
-    if (interval) {
+    return () => {
       clearInterval(interval);
-    }
+    };
   });
 
   // Update graph when widget size changes
-  $: if (width && height) {
-    updateGraph();
-  }
+  $effect(() => {
+    if (width && height) {
+      updateGraph();
+    }
+  });
 </script>
 
 <div class="gauge-container">
@@ -160,7 +154,7 @@
   {/if}
 
   <!-- SVG Graph -->
-  <svg 
+  <svg
     bind:this={svgElement}
     {width}
     {height}
@@ -185,4 +179,4 @@
     display: flex;
     flex-direction: column;
   }
-</style> 
+</style>

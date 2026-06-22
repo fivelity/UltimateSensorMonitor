@@ -1,22 +1,23 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { availableSensors, sensorData, storeUtils } from '$lib/stores';
-  import { X, Thermometer, Cpu, Zap, Gauge, Plus, ChevronDown, ChevronRight } from 'lucide-svelte';
-  import type { SensorData, WidgetConfig } from '$lib/types';
+  import { X, Thermometer, Cpu, Zap, Gauge, Plus, ChevronDown, ChevronRight } from '@lucide/svelte';
+  import type { GaugeType, SensorData, WidgetConfig } from '$lib/types';
 
-  const dispatch = createEventDispatcher();
+  const { onclose }: { onclose?: () => void } = $props();
 
   // Accordion state - track which category is expanded
-  let expandedCategory: string | null = null;
+  let expandedCategory: string | null = $state(null);
 
   // Group sensors by category
-  $: sensorsByCategory = $availableSensors.reduce((acc, sensor) => {
-    if (!acc[sensor.category]) {
-      acc[sensor.category] = [];
-    }
-    acc[sensor.category].push(sensor);
-    return acc;
-  }, {} as Record<string, SensorData[]>);
+  const sensorsByCategory = $derived(
+    $availableSensors.reduce((acc, sensor) => {
+      if (!acc[sensor.category]) {
+        acc[sensor.category] = [];
+      }
+      acc[sensor.category].push(sensor);
+      return acc;
+    }, {} as Record<string, SensorData[]>)
+  );
 
   // Category icons
   const categoryIcons = {
@@ -41,11 +42,11 @@
     expandedCategory = expandedCategory === category ? null : category;
   }
 
-  function createWidget(sensor: SensorData, gaugeType: string = 'text') {
+  function createWidget(sensor: SensorData, gaugeType: GaugeType = 'text') {
     const widget: WidgetConfig = {
       id: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       sensor_id: sensor.id,
-      gauge_type: gaugeType as any,
+      gauge_type: gaugeType,
       pos_x: 100,
       pos_y: 100,
       width: 200,
@@ -62,7 +63,7 @@
     storeUtils.addWidget(widget);
   }
 
-  function formatValue(value: any): string {
+  function formatValue(value: number | string | undefined): string {
     if (typeof value === 'number') {
       return Number.isInteger(value) ? value.toString() : value.toFixed(1);
     }
@@ -76,7 +77,7 @@
     if (sensor) {
       // Expand the category
       expandedCategory = sensor.category;
-      
+
       // Scroll to the sensor after a short delay to allow accordion to expand
       setTimeout(() => {
         const sensorElement = document.querySelector(`[data-sensor-id="${sensorId}"]`);
@@ -94,13 +95,13 @@
 </script>
 
 <div class="sidebar-content h-full flex flex-col bg-[var(--theme-surface)]">
-  
+
   <!-- Header -->
   <div class="flex items-center justify-between p-4 border-b border-[var(--theme-border)]">
     <h2 class="font-semibold text-[var(--theme-text)]">Sensors & Widgets</h2>
     <button
       class="p-1 rounded hover:bg-[var(--theme-border)] transition-colors"
-      on:click={() => dispatch('close')}
+      onclick={() => onclose?.()}
       title="Close panel"
     >
       <X size={16} />
@@ -109,22 +110,20 @@
 
   <!-- Content -->
   <div class="flex-1 overflow-y-auto">
-    
+
     <!-- Sensors by Category (Accordion) -->
     {#each Object.entries(sensorsByCategory) as [category, sensors]}
+      {@const ChevronIcon = expandedCategory === category ? ChevronDown : ChevronRight}
+      {@const CategoryIcon = getCategoryIcon(category)}
       <div class="border-b border-[var(--theme-border)]">
-        
+
         <!-- Category Header (Clickable) -->
         <button
           class="w-full p-4 flex items-center gap-2 hover:bg-[var(--theme-background)] transition-colors text-left"
-          on:click={() => toggleCategory(category)}
+          onclick={() => toggleCategory(category)}
         >
-          <svelte:component 
-            this={expandedCategory === category ? ChevronDown : ChevronRight} 
-            size={16} 
-            class="text-[var(--theme-text-muted)] transition-transform" 
-          />
-          <svelte:component this={getCategoryIcon(category)} size={16} class="text-[var(--theme-primary)]" />
+          <ChevronIcon size={16} class="text-[var(--theme-text-muted)] transition-transform" />
+          <CategoryIcon size={16} class="text-[var(--theme-primary)]" />
           <h3 class="font-medium text-[var(--theme-text)] capitalize flex-1">
             {category.replace('_', ' ')}
           </h3>
@@ -138,11 +137,11 @@
           <div class="px-4 pb-4 space-y-2">
             {#each sensors as sensor}
               {@const currentData = $sensorData[sensor.id]}
-              <div 
+              <div
                 class="sensor-item p-3 rounded-lg bg-[var(--theme-background)] border border-[var(--theme-border)] hover:border-[var(--theme-primary)] transition-colors group"
                 data-sensor-id={sensor.id}
               >
-                
+
                 <!-- Sensor Info -->
                 <div class="flex items-center justify-between mb-2">
                   <div>
@@ -168,7 +167,7 @@
                   {@const percentage = Math.min(100, Math.max(0, ((currentData.value - sensor.min_value) / (sensor.max_value - sensor.min_value)) * 100))}
                   <div class="mb-2">
                     <div class="w-full bg-[var(--theme-border)] rounded-full h-1.5">
-                      <div 
+                      <div
                         class="bg-[var(--theme-primary)] h-1.5 rounded-full transition-all duration-300"
                         style="width: {percentage}%"
                       ></div>
@@ -184,7 +183,7 @@
                 <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
                   <button
                     class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                    on:click={() => createWidget(sensor, 'text')}
+                    onclick={() => createWidget(sensor, 'text')}
                     title="Add as text widget"
                   >
                     <Plus size={12} />
@@ -192,7 +191,7 @@
                   </button>
                   <button
                     class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-500 text-white hover:bg-green-600 transition-colors"
-                    on:click={() => createWidget(sensor, 'radial')}
+                    onclick={() => createWidget(sensor, 'radial')}
                     title="Add as radial gauge"
                   >
                     <Plus size={12} />
@@ -200,7 +199,7 @@
                   </button>
                   <button
                     class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-purple-500 text-white hover:bg-purple-600 transition-colors"
-                    on:click={() => createWidget(sensor, 'linear')}
+                    onclick={() => createWidget(sensor, 'linear')}
                     title="Add as linear gauge"
                   >
                     <Plus size={12} />
@@ -208,7 +207,7 @@
                   </button>
                   <button
                     class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-                    on:click={() => createWidget(sensor, 'graph')}
+                    onclick={() => createWidget(sensor, 'graph')}
                     title="Add as time graph"
                   >
                     <Plus size={12} />
@@ -216,7 +215,7 @@
                   </button>
                   <button
                     class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-pink-500 text-white hover:bg-pink-600 transition-colors"
-                    on:click={() => createWidget(sensor, 'image')}
+                    onclick={() => createWidget(sensor, 'image')}
                     title="Add as image sequence"
                   >
                     <Plus size={12} />
@@ -242,19 +241,20 @@
 </div>
 
 <style>
-  .sensor-item.highlight-sensor {
-    @apply border-yellow-400 bg-yellow-50;
+  :global(.sensor-item.highlight-sensor) {
+    border-color: #fbbf24;
+    background-color: #fefce8;
     animation: highlight-pulse 2s ease-in-out;
   }
 
   @keyframes highlight-pulse {
-    0%, 100% { 
+    0%, 100% {
       border-color: var(--theme-border);
       background-color: var(--theme-background);
     }
-    50% { 
+    50% {
       border-color: #fbbf24;
       background-color: #fefce8;
     }
   }
-</style> 
+</style>

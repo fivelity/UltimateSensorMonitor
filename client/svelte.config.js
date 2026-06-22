@@ -6,7 +6,11 @@ const config = {
 	kit: {
 		adapter: adapter()
 	},
-	preprocess: vitePreprocess()
+	preprocess: vitePreprocess(),
+	compilerOptions: {
+		// Svelte 5: enable runes mode
+		runes: true
+	}
 };
 
-export default config; 
+export default config;

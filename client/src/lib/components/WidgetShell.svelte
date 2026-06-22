@@ -1,55 +1,55 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
   import { 
     editMode, 
     selectedWidgets, 
     sensorData, 
     visualSettings,
-    storeUtils,
-    availableSensors
+    storeUtils
   } from '$lib/stores';
-  import type { WidgetConfig, SensorData, Point } from '$lib/types';
+  import type { WidgetConfig, SensorData, Point, ResizeHandle } from '$lib/types';
   import TextGauge from './gauges/TextGauge.svelte';
   import RadialGauge from './gauges/RadialGauge.svelte';
   import LinearGauge from './gauges/LinearGauge.svelte';
   import GraphGauge from './gauges/GraphGauge.svelte';
   import ImageSequenceGauge from './gauges/ImageSequenceGauge.svelte';
   import GlassmorphicGauge from './gauges/GlassmorphicGauge.svelte';
-  import { Lock, Unlock } from 'lucide-svelte';
+  import { Lock, Unlock } from '@lucide/svelte';
 
-  export let widget: WidgetConfig;
+  interface Props {
+    widget: WidgetConfig;
+  }
 
-  const dispatch = createEventDispatcher();
+  const { widget }: Props = $props();
 
-  let widgetElement: HTMLDivElement;
-  let isDragging = false;
-  let isResizing = false;
-  let resizeHandle = '';
-  let dragStart = { x: 0, y: 0 };
-  let initialPos = { x: 0, y: 0 };
-  let rafId: number | null = null; // For requestAnimationFrame optimization
+  let widgetElement = $state<HTMLDivElement | undefined>(undefined);
+  let isDragging = $state(false);
+  let isResizing = $state(false);
+  let resizeHandle = $state<ResizeHandle | ''>('');
+  let dragStart = $state<Point>({ x: 0, y: 0 });
+  let initialPos = $state<Point>({ x: 0, y: 0 });
+  let rafId = $state<number | null>(null); // For requestAnimationFrame optimization
 
   // Performance optimization: throttle updates
-  let lastUpdateTime = 0;
+  let lastUpdateTime = $state(0);
   const UPDATE_THRESHOLD = 16; // ~60fps
 
   // Get current sensor data for this widget
-  $: currentSensorData = $sensorData[widget.sensor_id] as SensorData | undefined;
-  $: console.log(`[WidgetShell ${widget.id}] Sensor ID: ${widget.sensor_id}, Current Data:`, currentSensorData);
+  const currentSensorData = $derived($sensorData[widget.sensor_id] as SensorData | undefined);
+
+  $effect(() => {
+    console.log(`[WidgetShell ${widget.id}] Sensor ID: ${widget.sensor_id}, Current Data:`, currentSensorData);
+  });
   
   // Check if widget is selected
-  $: isSelected = $selectedWidgets.type === 'widget' && $selectedWidgets.ids.includes(widget.id);
+  const isSelected = $derived($selectedWidgets.type === 'widget' && $selectedWidgets.ids.includes(widget.id));
   
   // Check if widget is locked
-  $: isLocked = widget.is_locked;
+  const isLocked = $derived(widget.is_locked);
   
   // Show controls when in edit mode and widget is selected
-  $: showControls = $editMode === 'edit' && isSelected;
+  const showControls = $derived($editMode === 'edit' && isSelected);
 
-  $: sensorInfo = $availableSensors.find(s => s.id === widget.sensor_id);
-  $: currentValue = $sensorData[widget.sensor_id];
-
-  onMount(() => {
+  $effect(() => {
     function handleMouseMove(event: MouseEvent) {
       if (isDragging) {
         handleDrag(event);
@@ -104,14 +104,6 @@
     }
   }
 
-  function handleWidgetClick(event: MouseEvent) {
-    if ($editMode !== 'edit') return;
-    event.stopPropagation();
-    
-    // Select widget
-    storeUtils.selectWidget(widget.id, event.shiftKey || event.ctrlKey);
-  }
-
   function startDrag(event: MouseEvent) {
     isDragging = true;
     dragStart = { x: event.clientX, y: event.clientY };
@@ -160,7 +152,7 @@
     });
   }
 
-  function startResize(event: MouseEvent, handle: string) {
+  function startResize(event: MouseEvent, handle: ResizeHandle) {
     event.preventDefault();
     event.stopPropagation();
     
@@ -298,7 +290,7 @@
   }
 
   // Get the appropriate gauge component based on widget type
-  function getGaugeComponent(gaugeType: string) {
+  function getGaugeComponent(gaugeType: WidgetConfig['gauge_type']) {
     switch (gaugeType) {
       case 'radial':
         return RadialGauge;
@@ -332,8 +324,8 @@
     z-index: {widget.z_index + (isSelected ? 1000 : 0)};
     transform: rotate({widget.rotation}deg);
   "
-  on:mousedown={handleWidgetMouseDown}
-  on:contextmenu={handleWidgetRightClick}
+  onmousedown={handleWidgetMouseDown}
+  oncontextmenu={handleWidgetRightClick}
   role="button"
   tabindex="0"
 >
@@ -374,7 +366,7 @@
     <!-- Lock/Unlock Button -->
     <button
       class="absolute -top-8 -right-8 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-blue-600 transition-colors"
-      on:click|stopPropagation={toggleLock}
+      onclick={(event) => { event.stopPropagation(); toggleLock(); }}
       title={isLocked ? 'Unlock widget' : 'Lock widget'}
     >
       {#if isLocked}
@@ -389,37 +381,37 @@
       <!-- Corner handles -->
       <div 
         class="absolute -top-1 -left-1 w-3 h-3 bg-blue-500 cursor-nw-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'nw')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'nw'); }}
       ></div>
       <div 
         class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 cursor-ne-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'ne')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'ne'); }}
       ></div>
       <div 
         class="absolute -bottom-1 -left-1 w-3 h-3 bg-blue-500 cursor-sw-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'sw')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'sw'); }}
       ></div>
       <div 
         class="absolute -bottom-1 -right-1 w-3 h-3 bg-blue-500 cursor-se-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'se')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'se'); }}
       ></div>
       
       <!-- Edge handles -->
       <div 
         class="absolute -top-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 cursor-n-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'n')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'n'); }}
       ></div>
       <div 
         class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-500 cursor-s-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 's')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 's'); }}
       ></div>
       <div 
         class="absolute -left-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 cursor-w-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'w')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'w'); }}
       ></div>
       <div 
         class="absolute -right-1 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-blue-500 cursor-e-resize resize-handle" 
-        on:mousedown|stopPropagation={(e) => startResize(e, 'e')}
+        onmousedown={(event) => { event.stopPropagation(); startResize(event, 'e'); }}
       ></div>
     {/if}
   {/if}
@@ -453,4 +445,4 @@
   .widget-shell:hover {
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
   }
-</style> 
+</style>

@@ -1,0 +1,377 @@
+{
+  // =============================================================================
+  // UltimateSensorMonitor - Debug Configurations
+  // =============================================================================
+  
+  "version": "0.2.0",
+  "configurations": [
+    // =============================================================================
+    // Python / FastAPI Backend Debugging
+    // =============================================================================
+    
+    {
+      "name": "FastAPI - Debug Server",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/server/main.py",
+      "module": "uvicorn",
+      "args": [
+        "server.main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/server",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/server",
+      "presentation": {
+        "hidden": false,
+        "group": "Backend",
+        "order": 1
+      }
+    },
+    
+    {
+      "name": "FastAPI - Attach to Running Server",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/server",
+          "remoteRoot": "/app"
+        }
+      ],
+      "presentation": {
+        "hidden": false,
+        "group": "Backend",
+        "order": 2
+      }
+    },
+    
+    {
+      "name": "Python - Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/server",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}/server",
+      "presentation": {
+        "hidden": false,
+        "group": "Backend",
+        "order": 3
+      }
+    },
+    
+    {
+      "name": "Python - Test File",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-v"
+      ],
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/server",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/server",
+      "presentation": {
+        "hidden": false,
+        "group": "Backend",
+        "order": 4
+      }
+    },
+    
+    // =============================================================================
+    // SvelteKit / Frontend Debugging
+    // =============================================================================
+    
+    {
+      "name": "SvelteKit - Debug Client",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vite/bin/vite.js",
+      "args": [
+        "dev",
+        "--debug"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      },
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Frontend",
+        "order": 1
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/client/**",
+        "!**/node_modules/**"
+      ]
+    },
+    
+    {
+      "name": "SvelteKit - Debug Server (SSR)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vite/bin/vite.js",
+      "args": [
+        "dev",
+        "--debug"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "env": {
+        "NODE_OPTIONS": "--inspect"
+      },
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Frontend",
+        "order": 2
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/client/**",
+        "!**/node_modules/**"
+      ]
+    },
+    
+    {
+      "name": "SvelteKit - Build and Debug",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vite/bin/vite.js",
+      "args": [
+        "build",
+        "--debug"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Frontend",
+        "order": 3
+      }
+    },
+    
+    {
+      "name": "SvelteKit - Preview Build",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vite/bin/vite.js",
+      "args": [
+        "preview"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Frontend",
+        "order": 4
+      }
+    },
+    
+    // =============================================================================
+    // Browser Debugging (Chrome/Firefox)
+    // =============================================================================
+    
+    {
+      "name": "Chrome - Debug Frontend",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client/src",
+      "sourceMaps": true,
+      "trace": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Browser",
+        "order": 1
+      }
+    },
+    
+    {
+      "name": "Chrome - Attach to Frontend",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/client/src",
+      "sourceMaps": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Browser",
+        "order": 2
+      }
+    },
+    
+    {
+      "name": "Firefox - Debug Frontend",
+      "type": "firefox",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client/src",
+      "sourceMaps": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Browser",
+        "order": 3
+      }
+    },
+    
+    // =============================================================================
+    // Testing Debugging
+    // =============================================================================
+    
+    {
+      "name": "Vitest - Debug Tests",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vitest/vitest.mjs",
+      "args": [
+        "run",
+        "--reporter=verbose",
+        "--no-coverage"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "env": {
+        "NODE_OPTIONS": "--inspect-brk"
+      },
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Testing",
+        "order": 1
+      }
+    },
+    
+    {
+      "name": "Vitest - Debug Watch Mode",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/client/node_modules/vitest/vitest.mjs",
+      "args": [
+        "watch",
+        "--reporter=verbose"
+      ],
+      "cwd": "${workspaceFolder}/client",
+      "env": {
+        "NODE_OPTIONS": "--inspect-brk"
+      },
+      "console": "integratedTerminal",
+      "presentation": {
+        "hidden": false,
+        "group": "Testing",
+        "order": 2
+      }
+    },
+    
+    {
+      "name": "Pytest - Debug Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${workspaceFolder}/server/tests",
+        "-v",
+        "--tb=short"
+      ],
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/server",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/server",
+      "presentation": {
+        "hidden": false,
+        "group": "Testing",
+        "order": 3
+      }
+    },
+    
+    // =============================================================================
+    // Full Stack Debugging (Compound Configurations)
+    // =============================================================================
+    
+    {
+      "name": "Full Stack - Debug All",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/client",
+      "presentation": {
+        "hidden": false,
+        "group": "Full Stack",
+        "order": 1
+      }
+    }
+  ],
+  
+  // =============================================================================
+  // Compound Debug Configurations
+  // =============================================================================
+  
+  "compounds": [
+    {
+      "name": "Launch Full Stack",
+      "configurations": [
+        "FastAPI - Debug Server",
+        "SvelteKit - Debug Client"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Full Stack",
+        "order": 1
+      }
+    },
+    
+    {
+      "name": "Launch Full Stack with Browser",
+      "configurations": [
+        "FastAPI - Debug Server",
+        "SvelteKit - Debug Client",
+        "Chrome - Debug Frontend"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Full Stack",
+        "order": 2
+      }
+    },
+    
+    {
+      "name": "Run All Tests",
+      "configurations": [
+        "Vitest - Debug Tests",
+        "Pytest - Debug Tests"
+      ],
+      "stopAll": true,
+      "presentation": {
+        "hidden": false,
+        "group": "Testing",
+        "order": 4
+      }
+    }
+  ]
+}

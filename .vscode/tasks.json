@@ -1,0 +1,633 @@
+{
+  // =============================================================================
+  // UltimateSensorMonitor - Build Tasks
+  // =============================================================================
+  
+  "version": "2.0.0",
+  "tasks": [
+    // =============================================================================
+    // Frontend (SvelteKit) Tasks
+    // =============================================================================
+    
+    {
+      "label": "Frontend: Install Dependencies",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Install npm dependencies for the frontend",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Development Server",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Local:.*",
+          "endsPattern": ".*ready in.*"
+        }
+      },
+      "detail": "Start SvelteKit development server",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Build",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "build"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Build SvelteKit application for production",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Preview Build",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "preview"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Local:.*",
+          "endsPattern": ".*ready in.*"
+        }
+      },
+      "detail": "Preview production build locally",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Type Check",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "check"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "typescript",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Run TypeScript type checking",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Lint",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "lint"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "eslint",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Run ESLint on frontend code",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Format",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "format"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Format frontend code with Prettier",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Run Tests",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "vitest",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Run frontend tests with Vitest",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Frontend: Test UI",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "test:ui"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "vitest",
+        "fileLocation": ["relative", "${workspaceFolder}/client"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|info)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*UI started at.*",
+          "endsPattern": ".*"
+        }
+      },
+      "detail": "Run frontend tests with Vitest UI",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    // =============================================================================
+    // Backend (Python/FastAPI) Tasks
+    // =============================================================================
+    
+    {
+      "label": "Backend: Setup Virtual Environment",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "venv", "venv"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Create Python virtual environment",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Install Dependencies",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/pip.exe",
+      "args": ["install", "-r", "requirements.txt"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Install Python dependencies from requirements.txt",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Development Server",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/python.exe",
+      "args": ["-m", "uvicorn", "main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}/server"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+([A-Z]+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Uvicorn running on.*",
+          "endsPattern": ".*Application startup complete.*"
+        }
+      },
+      "detail": "Start FastAPI development server",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Lint",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/flake8.exe",
+      "args": ["."],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "flake8",
+        "fileLocation": ["relative", "${workspaceFolder}/server"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+([A-Z]\\d+)\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Run flake8 linter on backend code",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Type Check",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/mypy.exe",
+      "args": ["."],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "mypy",
+        "fileLocation": ["relative", "${workspaceFolder}/server"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Run MyPy type checking on backend code",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Format",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/black.exe",
+      "args": ["."],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Format backend code with Black",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Backend: Run Tests",
+      "type": "shell",
+      "command": "${workspaceFolder}/server/venv/Scripts/pytest.exe",
+      "args": ["-v"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": {
+        "owner": "pytest",
+        "fileLocation": ["relative", "${workspaceFolder}/server"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      },
+      "detail": "Run backend tests with pytest",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    // =============================================================================
+    // Full Stack Tasks
+    // =============================================================================
+    
+    {
+      "label": "Full Stack: Install All Dependencies",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Install Dependencies",
+        "Backend: Install Dependencies"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "detail": "Install dependencies for both frontend and backend"
+    },
+    
+    {
+      "label": "Full Stack: Start Development Servers",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Development Server",
+        "Backend: Development Server"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "detail": "Start both frontend and backend development servers"
+    },
+    
+    {
+      "label": "Full Stack: Build All",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Build",
+        "Backend: Type Check"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "detail": "Build frontend and type check backend"
+    },
+    
+    {
+      "label": "Full Stack: Run All Tests",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Run Tests",
+        "Backend: Run Tests"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "detail": "Run tests for both frontend and backend"
+    },
+    
+    {
+      "label": "Full Stack: Lint All",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Lint",
+        "Backend: Lint"
+      ],
+      "group": "build",
+      "detail": "Run linters on both frontend and backend"
+    },
+    
+    {
+      "label": "Full Stack: Format All",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Frontend: Format",
+        "Backend: Format"
+      ],
+      "group": "build",
+      "detail": "Format code in both frontend and backend"
+    },
+    
+    // =============================================================================
+    // Utility Tasks
+    // =============================================================================
+    
+    {
+      "label": "Clean: Frontend Build",
+      "type": "shell",
+      "command": "rm",
+      "args": ["-rf", ".svelte-kit", "build", "dist"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Clean frontend build artifacts",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      }
+    },
+    
+    {
+      "label": "Clean: Python Cache",
+      "type": "shell",
+      "command": "find",
+      "args": ["${workspaceFolder}/server", "-type", "d", "-name", "__pycache__", "-exec", "rm", "-rf", "{}", "+"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Clean Python cache files",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      }
+    },
+    
+    {
+      "label": "Clean: All",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Clean: Frontend Build",
+        "Clean: Python Cache"
+      ],
+      "group": "build",
+      "detail": "Clean all build artifacts and cache files"
+    }
+  ]
+}

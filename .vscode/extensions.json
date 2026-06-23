@@ -1,0 +1,208 @@
+{
+  // =============================================================================
+  // UltimateSensorMonitor - Recommended VS Code Extensions
+  // =============================================================================
+  
+  "recommendations": [
+    // =============================================================================
+    // Svelte / Frontend Extensions
+    // =============================================================================
+    
+    // Official Svelte extension with TypeScript support
+    "svelte.svelte-vscode",
+    
+    // Tailwind CSS support
+    "bradlc.vscode-tailwindcss",
+    
+    // ESLint integration
+    "dbaeumer.vscode-eslint",
+    
+    // Prettier code formatter
+    "esbenp.prettier-vscode",
+    
+    // TypeScript support
+    "ms-vscode.vscode-typescript-next",
+    
+    // Auto Rename Tag
+    "formulahendry.auto-rename-tag",
+    
+    // Auto Close Tag
+    "formulahendry.auto-close-tag",
+    
+    // Path Intellisense
+    "christian-kohler.path-intellisense",
+    
+    // Import Cost
+    "wix.vscode-import-cost",
+    
+    // =============================================================================
+    // Python / Backend Extensions
+    // =============================================================================
+    
+    // Python extension from Microsoft
+    "ms-python.python",
+    
+    // Black formatter for Python
+    "ms-python.black-formatter",
+    
+    // Pylint linter
+    "ms-python.pylint",
+    
+    // Flake8 linter
+    "ms-python.flake8",
+    
+    // MyPy type checking
+    "ms-python.mypy-type-checker",
+    
+    // Python Docstring Generator
+    "njpwerner.autodocstring",
+    
+    // Python Test Explorer
+    "hbenl.vscode-test-explorer",
+    
+    // =============================================================================
+    // General Development Extensions
+    // =============================================================================
+    
+    // GitLens - Git supercharged
+    "eamodio.gitlens",
+    
+    // Docker extension
+    "ms-azuretools.vscode-docker",
+    
+    // Thunder Client (API testing)
+    "rangav.vscode-thunder-client",
+    
+    // TODO Highlight
+    "wayou.vscode-todo-highlight",
+    
+    // Bracket Pair Colorizer
+    "coenraads.bracket-pair-colorizer-2",
+    
+    // Indent Rainbow
+    "oderwat.indent-rainbow",
+    
+    // Error Lens
+    "usernamehw.errorlens",
+    
+    // Bookmarks
+    "alefragnani.Bookmarks",
+    
+    // Project Manager
+    "alefragnani.project-manager",
+    
+    // =============================================================================
+    // Theme & Icon Extensions (Optional)
+    // =============================================================================
+    
+    // Material Icon Theme
+    "pkief.material-icon-theme",
+    
+    // One Dark Pro Theme
+    "zhuangtongfa.material-theme",
+    
+    // =============================================================================
+    // Productivity Extensions
+    // =============================================================================
+    
+    // VSCode Great Icons (alternative icon theme)
+    "emmanuelbeziat.vscode-great-icons",
+    
+    // Peacock - Workspace colorizer
+    "johnpapa.vscode-peacock",
+    
+    // Live Server (for static file serving)
+    "ritwickdey.liveserver",
+    
+    // REST Client (alternative to Thunder Client)
+    "humao.rest-client",
+    
+    // =============================================================================
+    // Database Extensions (Optional)
+    // =============================================================================
+    
+    // SQLite extension
+    "alexcvzz.vscode-sqlite",
+    
+    // MongoDB extension
+    "mongodb.mongodb-vscode",
+
+    // =============================================================================  
+    // Additional Recommended Extensions for Advanced Development
+    // =============================================================================
+
+    // Advanced New File
+    "patbenatar.advanced-new-file",
+    
+    // Multiple cursor case preserve
+    "cardinal90.multi-cursor-case-preserve",
+    
+    // Sort lines
+    "Tyriar.sort-lines",
+    
+    // Toggle Quotes
+    "BriteSnow.vscode-toggle-quotes",
+    
+    // Change Case
+    "wmaurer.change-case",
+    
+    // File Utils
+    "sleistner.vscode-fileutils",
+    
+    // npm Intellisense
+    "christian-kohler.npm-intellisense",
+    
+    // npm Script Runner
+    "eg2.vscode-npm-script",
+    
+    // Package Json Updater
+    "kevinkyang.auto-package-json-upgrader",
+    
+    // Version Lens
+    "pflannery.vscode-versionlens",
+    
+    // =============================================================================
+    // Testing & Quality Extensions
+    // =============================================================================
+    
+    // Coverage Gutters
+    "ryanluker.vscode-coverage-gutters",
+    
+    // Jest Runner
+    "firsttris.vscode-jest-runner",
+    
+    // Code Runner
+    "formulahendry.code-runner",
+    
+    // =============================================================================
+    // Documentation Extensions
+    // =============================================================================
+    
+    // Markdown All in One
+    "yzhang.markdown-all-in-one",
+    
+    // Markdown Preview Enhanced
+    "shd101wyy.markdown-preview-enhanced",
+    
+    // Docsify
+    "docsify.docsify",
+    
+    // =============================================================================
+    // Security Extensions
+    // =============================================================================
+    
+    // Security Alert
+    "filipesilva.git-security-alert"
+  ],
+  
+  // Unwanted recommendations (extensions that conflict with our setup)
+  "unwantedRecommendations": [
+    // Old Svelte extensions that conflict with the official one
+    "unwrittenfun.svelte-vscode",
+    "jamesbirtles.svelte-vscode",
+    
+    // Extensions that might conflict with our setup
+    "ms-vscode.vscode-json",
+    "hookyqr.beautify"
+  ]
+}

@@ -1,61 +1,75 @@
-"""
-Abstract base class for sensor data sources.
-"""
+"""Abstract base classes for sensor data sources."""
 
+from __future__ import annotations
+
+import asyncio
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
-from ..models import SensorData
 
 
 class BaseSensor(ABC):
-    """Abstract base class for all sensor data sources."""
-    
+    """Abstract base class for all sensor data sources.
+
+    All public methods are async so that the orchestration layer does not need
+    runtime introspection to decide whether to await a call.
+    """
+
     def __init__(self, source_name: str = "Unknown"):
         self.source_name = source_name
         self.is_active = False
-        self.last_error = None
-    
+        self.last_error: Exception | None = None
+
     @abstractmethod
-    def is_available(self) -> bool:
-        """
-        Check if the sensor source is available.
-        Returns True if available, False otherwise.
-        """
-        pass
-    
+    async def is_available(self) -> bool:
+        """Return True if the sensor source can be used."""
+        ...
+
     @abstractmethod
-    def get_available_sensors(self) -> List[Dict[str, Any]]:
-        """
-        Get list of available sensors from this source.
-        Returns list of sensor dictionaries.
-        """
-        pass
-    
+    async def get_available_sensors(self) -> list[SensorData]:
+        """Return a list of sensor metadata objects."""
+        ...
+
     @abstractmethod
-    def get_current_data(self) -> Dict[str, Any]:
-        """
-        Get current sensor readings.
-        Returns dictionary with sensor data.
-        """
-        pass
-    
-    def get_sensor_by_id(self, sensor_id: str) -> Optional[Dict[str, Any]]:
-        """Get specific sensor data by ID."""
-        sensors = self.get_available_sensors()
-        for sensor in sensors:
-            if sensor.get("id") == sensor_id:
-                return sensor
-        return None
-    
-    def get_sensors_by_category(self, category: str) -> List[Dict[str, Any]]:
-        """Get sensors filtered by category."""
-        sensors = self.get_available_sensors()
-        return [sensor for sensor in sensors if sensor.get("category") == category]
-    
-    def get_source_info(self) -> Dict[str, Any]:
-        """Get information about this sensor source."""
+    async def get_current_data(self) -> dict[str, SensorData]:
+        """Return current readings keyed by sensor ID."""
+        ...
+
+    def get_source_info(self) -> dict[str, str | bool | None]:
+        """Return a summary of this source."""
         return {
             "name": self.source_name,
             "active": self.is_active,
-            "last_error": self.last_error
-        } 
+            "last_error": str(self.last_error) if self.last_error else None,
+        }
+
+
+class SyncSensorBase(BaseSensor, ABC):
+    """Helper base for sensors that perform synchronous I/O.
+
+    Subclasses implement the synchronous `_sync_*` hooks; this class wraps them
+    in ``asyncio.to_thread()`` so they expose the same async interface as
+    naturally async sensors.
+    """
+
+    @abstractmethod
+    def _sync_is_available(self) -> bool:
+        """Return True if the sensor source can be used."""
+        ...
+
+    @abstractmethod
+    def _sync_get_available_sensors(self) -> list[SensorData]:
+        """Return a list of sensor metadata objects."""
+        ...
+
+    @abstractmethod
+    def _sync_get_current_data(self) -> dict[str, SensorData]:
+        """Return current readings keyed by sensor ID."""
+        ...
+
+    async def is_available(self) -> bool:
+        return await asyncio.to_thread(self._sync_is_available)
+
+    async def get_available_sensors(self) -> list[SensorData]:
+        return await asyncio.to_thread(self._sync_get_available_sensors)
+
+    async def get_current_data(self) -> dict[str, SensorData]:
+        return await asyncio.to_thread(self._sync_get_current_data)

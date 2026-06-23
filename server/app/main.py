@@ -3,196 +3,283 @@ Ultimate Sensor Monitor Reimagined - FastAPI Backend
 Main application entry point with WebSocket support and API endpoints.
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from __future__ import annotations
+
 import asyncio
 import json
-import os
-from typing import Dict, List, Any
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .config import settings
-from .websockets import WebSocketManager
-from .sensors.mock_sensor import MockSensor
-from .sensors.librehardware_sensor import LibreHardwareSensor
-from .sensors.librehardware_sensor_new import LibreHardwareSensorUpdated
+from .exceptions import AppError
+from .models import DashboardPreset, WidgetGroup
+from .repositories.base import JsonFileRepository
+from .schemas import (
+    DebugSensorsResponse,
+    ErrorResponse,
+    HardwareTreeResponse,
+    HealthResponse,
+    MessageResponse,
+    PresetListResponse,
+    PresetResponse,
+    PresetSaveResponse,
+    ReadyResponse,
+    SensorDataResponse,
+    SensorsResponse,
+    WidgetGroupListResponse,
+    WidgetGroupResponse,
+    WidgetGroupSaveResponse,
+)
+from .services import PresetService, SensorService, WidgetGroupService
 from .sensors.hwinfo_sensor import HWiNFOSensor
-from .models import DashboardPreset, WidgetGroup, SensorData
+from .sensors.librehardware_sensor import LibreHardwareSensor
+from .sensors.mock_sensor import MockSensor
+from .websockets import WebSocketManager
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Shared application state (singletons managed outside FastAPI lifespan for reuse).
+DATA_DIR = Path(settings.data_directory)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+preset_repository = JsonFileRepository(DATA_DIR, "preset")
+widget_group_repository = JsonFileRepository(DATA_DIR, "widget_group")
+
+preset_service = PresetService(preset_repository)
+widget_group_service = WidgetGroupService(widget_group_repository)
+
+websocket_manager = WebSocketManager(max_connections=settings.max_websocket_connections)
+
+mock_sensor = MockSensor()
+librehw_sensor = LibreHardwareSensor()
+hwinfo_sensor = HWiNFOSensor()
+
+sensor_sources = [
+    ("mock", "Mock Sensor Data", mock_sensor),
+    ("librehardware", "LibreHardwareMonitor", librehw_sensor),
+    ("hwinfo", "HWiNFO64", hwinfo_sensor),
+]
+
+sensor_service = SensorService(sensor_sources)
+
+
+def get_sensor_service() -> SensorService:
+    """Dependency injection provider for the sensor service."""
+    return sensor_service
+
+
+def get_preset_service() -> PresetService:
+    """Dependency injection provider for the preset service."""
+    return preset_service
+
+
+def get_widget_group_service() -> WidgetGroupService:
+    """Dependency injection provider for the widget group service."""
+    return widget_group_service
+
+
+async def _broadcast_sensor_data(sensor_service: SensorService) -> None:
+    """Background task: fetch sensor data and broadcast to WebSocket clients."""
+    while True:
+        try:
+            current_data = await sensor_service.get_current_data()
+            if websocket_manager.active_connections:
+                await websocket_manager.broadcast_sensor_data(
+                    json.loads(current_data.model_dump_json())["sources"]
+                )
+            await asyncio.sleep(settings.sensor_update_interval)
+        except Exception as e:
+            logger.error(f"Error in sensor data broadcast: {e}")
+            await asyncio.sleep(1)
+
+
+async def _websocket_cleanup() -> None:
+    """Background task: periodically clean up stale WebSocket connections."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            await websocket_manager.cleanup_stale_connections()
+        except Exception as e:
+            logger.error(f"Error in WebSocket cleanup: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan: startup and shutdown tasks."""
+    logger.info("Starting Ultimate Sensor Monitor Reimagined...")
+
+    broadcast_task = asyncio.create_task(_broadcast_sensor_data(sensor_service))
+    cleanup_task = asyncio.create_task(_websocket_cleanup())
+
+    logger.info("Application startup complete!")
+
+    yield
+
+    logger.info("Shutting down Ultimate Sensor Monitor Reimagined...")
+    broadcast_task.cancel()
+    cleanup_task.cancel()
+
+    try:
+        await broadcast_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
+
+    for sensor in [librehw_sensor, hwinfo_sensor]:
+        try:
+            if hasattr(sensor, "close"):
+                sensor.close()
+        except Exception as e:
+            logger.error(f"Error during sensor cleanup: {e}")
+
+    logger.info("Shutdown complete")
+
+
 app = FastAPI(
     title="Ultimate Sensor Monitor Reimagined",
     description="Real-time hardware monitoring with customizable dashboards",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5501", "http://localhost:4173"],  # SvelteKit dev and preview
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize managers and sensors
-websocket_manager = WebSocketManager()
-mock_sensor = MockSensor()
-librehw_sensor = LibreHardwareSensor()
-librehw_sensor_updated = LibreHardwareSensorUpdated()  # New HardwareMonitor package implementation
-hwinfo_sensor = HWiNFOSensor()
 
-# Collect all available sensor sources
-sensor_sources = [
-    ("mock", "Mock Sensor Data", mock_sensor),
-    ("librehardware", "LibreHardwareMonitor", librehw_sensor),
-    ("librehardware_updated", "LibreHardwareMonitor Updated", librehw_sensor_updated),
-    ("hwinfo", "HWiNFO64", hwinfo_sensor)
-]
-
-# In-memory storage for presets and widget groups (in production, use a database)
-presets_storage: Dict[str, Dict] = {}
-widget_groups_storage: Dict[str, Dict] = {}
-
-# Ensure data directory exists
-os.makedirs("data", exist_ok=True)
+def _sanitize_validation_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Convert non-JSON-serializable values in error details to strings."""
+    sanitized: list[dict[str, object]] = []
+    for error in errors:
+        clean: dict[str, object] = {}
+        for key, value in error.items():
+            if isinstance(value, dict):
+                clean[key] = _sanitize_validation_errors([value])[0] if value else {}
+            elif isinstance(value, list):
+                clean[key] = [str(item) if not isinstance(item, (str, int, float, bool, type(None))) else item for item in value]
+            elif isinstance(value, BaseException):
+                clean[key] = str(value)
+            else:
+                clean[key] = value
+        sanitized.append(clean)
+    return sanitized
 
 
-@app.get("/")
-async def root():
+async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Convert FastAPI/Pydantic validation errors to structured JSON responses."""
+    logger.warning(f"Validation error: {exc} ({request.url.path})")
+    return JSONResponse(
+        status_code=422,
+        content=ErrorResponse(
+            error="ValidationError",
+            message="Request validation failed",
+            details={"errors": _sanitize_validation_errors(exc.errors())},
+        ).model_dump(),
+    )
+
+
+app.add_exception_handler(RequestValidationError, handle_validation_error)
+
+
+@app.exception_handler(AppError)
+async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+    """Convert application errors to structured JSON responses."""
+    logger.warning(f"Application error: {exc.detail} ({request.url.path})")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error=exc.__class__.__name__,
+            message=exc.detail,
+            details=getattr(exc, "__dict__", None),
+        ).model_dump(),
+    )
+
+
+
+
+@app.get("/", response_model=MessageResponse)
+async def root() -> MessageResponse:
     """Root endpoint."""
-    return {"message": "Ultimate Sensor Monitor Reimagined API", "version": "1.0.0"}
+    return MessageResponse(
+        message="Ultimate Sensor Monitor Reimagined API v1.0.0"
+    )
 
 
-@app.get("/api/sensors")
-async def get_available_sensors():
-    """Get list of all available sensor sources and their sensors."""
-    sources = {}
-    
-    for source_id, source_name, sensor_instance in sensor_sources:
-        if sensor_instance.is_available():
-            try:
-                # Handle async sensors
-                if hasattr(sensor_instance, 'get_available_sensors') and asyncio.iscoroutinefunction(sensor_instance.get_available_sensors):
-                    sensors = await sensor_instance.get_available_sensors()
-                else:
-                    sensors = sensor_instance.get_available_sensors()
-                    
-                sources[source_id] = {
-                    "id": source_id,
-                    "name": source_name,
-                    "active": True,
-                    "sensors": sensors,
-                    "last_update": datetime.now().isoformat()
-                }
-            except Exception as e:
-                logger.error(f"Failed to get sensors from {source_name}: {e}")
-                sources[source_id] = {
-                    "id": source_id,
-                    "name": source_name,
-                    "active": False,
-                    "sensors": [],
-                    "error_message": f"Error getting sensors: {str(e)}"
-                }
-        else:
-            sources[source_id] = {
-                "id": source_id,
-                "name": source_name,
-                "active": False,
-                "sensors": [],
-                "error_message": "Sensor source not available"
-            }
-    
-    return {"sources": sources}
+@app.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    """Health check endpoint."""
+    return HealthResponse(
+        status="healthy",
+        timestamp=datetime.now().isoformat(),
+        version="1.0.0",
+    )
 
 
-@app.get("/api/sensors/current")
-async def get_current_sensor_data():
-    """Get current sensor data from all sources."""
-    all_data = {}
-    
-    for source_id, source_name, sensor_instance in sensor_sources:
-        if sensor_instance.is_available():
-            try:
-                # Handle async sensors
-                if hasattr(sensor_instance, 'get_current_data') and asyncio.iscoroutinefunction(sensor_instance.get_current_data):
-                    data = await sensor_instance.get_current_data()
-                else:
-                    data = sensor_instance.get_current_data()
-                    
-                all_data[source_id] = {
-                    "source": source_name,
-                    "active": True,
-                    "sensors": data,
-                    "last_update": datetime.now().isoformat()
-                }
-            except Exception as e:
-                logger.error(f"Failed to get data from {source_name}: {e}")
-                all_data[source_id] = {
-                    "source": source_name,
-                    "active": False,
-                    "error": str(e),
-                    "sensors": {}
-                }
-        else:
-            all_data[source_id] = {
-                "source": source_name,
-                "active": False,
-                "sensors": {}
-            }
-    
-    return {
-        "timestamp": datetime.now().isoformat(),
-        "sources": all_data
-    }
+@app.get("/ready", response_model=ReadyResponse)
+async def ready(
+    sensor_service: SensorService = Depends(get_sensor_service),
+) -> ReadyResponse:
+    """Readiness check endpoint."""
+    available = await sensor_service.get_available_source_names()
+    return ReadyResponse(
+        status="ready" if available else "no_sensor_sources",
+        available_sources=available,
+    )
 
 
-@app.get("/api/sensors/hardware-tree")
-async def get_hardware_tree():
-    """Get hierarchical view of hardware components and sensors (LibreHardwareMonitor Updated only)."""
-    try:
-        # Use the updated LibreHardwareMonitor implementation
-        if librehw_sensor_updated.is_available():
-            hardware_tree = await librehw_sensor_updated.get_hardware_tree()
-            return {
-                "success": True,
-                "timestamp": datetime.now().isoformat(),
-                "hardware": hardware_tree
-            }
-        else:
-            return {
-                "success": False,
-                "error": "LibreHardwareMonitor (Updated) is not available",
-                "hardware": []
-            }
-    except Exception as e:
-        logger.error(f"Failed to get hardware tree: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "hardware": []
-        }
+@app.get("/api/sensors", response_model=SensorsResponse)
+async def get_available_sensors(
+    sensor_service: SensorService = Depends(get_sensor_service),
+) -> SensorsResponse:
+    """Get all available sensor sources and their sensors."""
+    return await sensor_service.get_available_sensors()
+
+
+@app.get("/api/sensors/current", response_model=SensorDataResponse)
+async def get_current_sensor_data(
+    sensor_service: SensorService = Depends(get_sensor_service),
+) -> SensorDataResponse:
+    """Get current sensor readings from all sources."""
+    return await sensor_service.get_current_data()
+
+
+@app.get("/api/sensors/hardware-tree", response_model=HardwareTreeResponse)
+async def get_hardware_tree(
+    sensor_service: SensorService = Depends(get_sensor_service),
+) -> HardwareTreeResponse:
+    """Get hierarchical hardware tree from LibreHardwareMonitor (Updated)."""
+    return await sensor_service.get_hardware_tree()
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time sensor data."""
-    await websocket_manager.connect(websocket)
+    connected = await websocket_manager.connect(websocket)
+    if not connected:
+        return
+
     try:
         while True:
-            # Keep connection alive and handle any incoming messages
             try:
                 message = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
-                # Handle any client messages if needed
-                logger.info(f"Received message: {message}")
+                logger.info(f"Received WebSocket message: {message}")
             except asyncio.TimeoutError:
-                # No message received, continue
                 pass
             except WebSocketDisconnect:
                 break
@@ -202,257 +289,91 @@ async def websocket_endpoint(websocket: WebSocket):
         websocket_manager.disconnect(websocket)
 
 
-@app.get("/api/presets")
-async def get_presets():
-    """Get all saved dashboard presets."""
-    return {"presets": list(presets_storage.keys())}
+@app.get("/api/presets", response_model=PresetListResponse)
+async def get_presets(
+    service: PresetService = Depends(get_preset_service),
+) -> PresetListResponse:
+    """List all saved dashboard presets."""
+    return service.list_presets()
 
 
-@app.post("/api/presets")
-async def save_preset(preset: DashboardPreset):
+@app.post("/api/presets", response_model=PresetSaveResponse, status_code=201)
+async def save_preset(
+    preset: DashboardPreset,
+    service: PresetService = Depends(get_preset_service),
+) -> PresetSaveResponse:
     """Save a dashboard preset."""
-    preset_id = preset.id or f"preset_{len(presets_storage) + 1}"
-    preset_data = {
-        "id": preset_id,
-        "name": preset.name,
-        "description": preset.description,
-        "widgets": preset.widgets,
-        "layout": preset.layout,
-        "visual_settings": preset.visual_settings,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
-    }
-    
-    presets_storage[preset_id] = preset_data
-    
-    # Also save to file for persistence
-    try:
-        with open(f"data/preset_{preset_id}.json", "w") as f:
-            json.dump(preset_data, f, indent=2)
-    except Exception as e:
-        logger.error(f"Failed to save preset to file: {e}")
-    
-    return {"message": "Preset saved successfully", "id": preset_id}
+    return service.save_preset(preset)
 
 
-@app.get("/api/presets/{preset_id}")
-async def get_preset(preset_id: str):
-    """Get a specific preset by ID."""
-    if preset_id not in presets_storage:
-        # Try loading from file
-        try:
-            with open(f"data/preset_{preset_id}.json", "r") as f:
-                preset_data = json.load(f)
-                presets_storage[preset_id] = preset_data
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail="Preset not found")
-    
-    return presets_storage[preset_id]
+@app.get("/api/presets/{preset_id}", response_model=PresetResponse)
+async def get_preset(
+    preset_id: str,
+    service: PresetService = Depends(get_preset_service),
+) -> PresetResponse:
+    """Get a specific dashboard preset."""
+    data = service.get_preset(preset_id)
+    return PresetResponse(**data)
 
 
-@app.delete("/api/presets/{preset_id}")
-async def delete_preset(preset_id: str):
-    """Delete a preset."""
-    if preset_id in presets_storage:
-        del presets_storage[preset_id]
-    
-    # Also delete file
-    try:
-        os.remove(f"data/preset_{preset_id}.json")
-    except FileNotFoundError:
-        pass
-    
-    return {"message": "Preset deleted successfully"}
+@app.delete("/api/presets/{preset_id}", response_model=MessageResponse)
+async def delete_preset(
+    preset_id: str,
+    service: PresetService = Depends(get_preset_service),
+) -> MessageResponse:
+    """Delete a dashboard preset."""
+    service.delete_preset(preset_id)
+    return MessageResponse(message="Preset deleted successfully")
 
 
-@app.post("/api/widget-groups")
-async def save_widget_group(group: WidgetGroup):
-    """Save a widget group for sharing."""
-    group_id = group.id or f"group_{len(widget_groups_storage) + 1}"
-    group_data = {
-        "id": group_id,
-        "name": group.name,
-        "description": group.description,
-        "widgets": group.widgets,
-        "relative_positions": group.relative_positions,
-        "created_at": datetime.now().isoformat()
-    }
-    
-    widget_groups_storage[group_id] = group_data
-    
-    # Save to file
-    try:
-        with open(f"data/widget_group_{group_id}.json", "w") as f:
-            json.dump(group_data, f, indent=2)
-    except Exception as e:
-        logger.error(f"Failed to save widget group to file: {e}")
-    
-    return {"message": "Widget group saved successfully", "id": group_id}
+@app.get("/api/widget-groups", response_model=WidgetGroupListResponse)
+async def get_widget_groups(
+    service: WidgetGroupService = Depends(get_widget_group_service),
+) -> WidgetGroupListResponse:
+    """List all saved widget groups."""
+    return service.list_groups()
 
 
-@app.get("/api/widget-groups")
-async def get_widget_groups():
-    """Get all available widget groups."""
-    return {"groups": list(widget_groups_storage.keys())}
+@app.post("/api/widget-groups", response_model=WidgetGroupSaveResponse, status_code=201)
+async def save_widget_group(
+    group: WidgetGroup,
+    service: WidgetGroupService = Depends(get_widget_group_service),
+) -> WidgetGroupSaveResponse:
+    """Save a widget group."""
+    return service.save_group(group)
 
 
-@app.get("/api/widget-groups/{group_id}")
-async def get_widget_group(group_id: str):
-    """Get a specific widget group by ID."""
-    if group_id not in widget_groups_storage:
-        # Try loading from file
-        try:
-            with open(f"data/widget_group_{group_id}.json", "r") as f:
-                group_data = json.load(f)
-                widget_groups_storage[group_id] = group_data
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail="Widget group not found")
-    
-    return widget_groups_storage[group_id]
+@app.get("/api/widget-groups/{group_id}", response_model=WidgetGroupResponse)
+async def get_widget_group(
+    group_id: str,
+    service: WidgetGroupService = Depends(get_widget_group_service),
+) -> WidgetGroupResponse:
+    """Get a specific widget group."""
+    data = service.get_group(group_id)
+    return WidgetGroupResponse(**data)
 
 
-async def broadcast_sensor_data():
-    """Background task to broadcast sensor data to all connected clients."""
-    while True:
-        try:
-            # Get current sensor data from all sources
-            all_sensor_data = {}
-            
-            for source_id, source_name, sensor_instance in sensor_sources:
-                if sensor_instance.is_available():
-                    try:
-                        # Handle async sensors
-                        if hasattr(sensor_instance, 'get_current_data') and asyncio.iscoroutinefunction(sensor_instance.get_current_data):
-                            data = await sensor_instance.get_current_data()
-                        else:
-                            data = sensor_instance.get_current_data()
-                            
-                        all_sensor_data[source_id] = {
-                            "source": source_name,
-                            "active": True,
-                            "sensors": data,
-                            "last_update": datetime.now().isoformat()
-                        }
-                    except Exception as e:
-                        logger.error(f"Failed to get data from {source_name}: {e}")
-                        all_sensor_data[source_id] = {
-                            "source": source_name,
-                            "active": False,
-                            "error": str(e),
-                            "sensors": {}
-                        }
-            
-            # Broadcast to all connected clients
-            if websocket_manager.active_connections:
-                message = {
-                    "type": "sensor_data",
-                    "timestamp": datetime.now().isoformat(),
-                    "sources": all_sensor_data
-                }
-                await websocket_manager.broadcast(json.dumps(message))
-            
-            # Wait before next update (configurable update rate)
-            await asyncio.sleep(settings.sensor_update_interval)
-            
-        except Exception as e:
-            logger.error(f"Error in sensor data broadcast: {e}")
-            await asyncio.sleep(1)
+@app.delete("/api/widget-groups/{group_id}", response_model=MessageResponse)
+async def delete_widget_group(
+    group_id: str,
+    service: WidgetGroupService = Depends(get_widget_group_service),
+) -> MessageResponse:
+    """Delete a widget group."""
+    service.delete_group(group_id)
+    return MessageResponse(message="Widget group deleted successfully")
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Application startup tasks."""
-    logger.info("Starting Ultimate Sensor Monitor Reimagined...")
-    
-    # Load existing presets from files
-    try:
-        for filename in os.listdir("data"):
-            if filename.startswith("preset_") and filename.endswith(".json"):
-                preset_id = filename.replace("preset_", "").replace(".json", "")
-                with open(f"data/{filename}", "r") as f:
-                    presets_storage[preset_id] = json.load(f)
-                    
-            elif filename.startswith("widget_group_") and filename.endswith(".json"):
-                group_id = filename.replace("widget_group_", "").replace(".json", "")
-                with open(f"data/{filename}", "r") as f:
-                    widget_groups_storage[group_id] = json.load(f)
-    except FileNotFoundError:
-        pass
-    
-    # Start background task for sensor data broadcasting
-    asyncio.create_task(broadcast_sensor_data())
-    
-    logger.info("Application startup complete!")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown tasks."""
-    logger.info("Shutting down Ultimate Sensor Monitor Reimagined...")
-    
-    # Clean up sensor resources
-    try:
-        if hasattr(librehw_sensor, 'close'):
-            librehw_sensor.close()
-        logger.info("Sensor cleanup completed")
-    except Exception as e:
-        logger.error(f"Error during sensor cleanup: {e}")
-    
-    logger.info("Shutdown complete")
-
-
-@app.get("/api/debug/sensors")
-async def debug_sensors():
-    """Debug endpoint to show detailed sensor information."""
-    debug_info = {
-        "sensor_sources": {},
-        "total_sensors": 0,
-        "categories": {}
-    }
-    
-    for source_id, source_name, sensor_instance in sensor_sources:
-        if sensor_instance.is_available():
-            try:
-                # Get current data
-                if hasattr(sensor_instance, 'get_current_data') and asyncio.iscoroutinefunction(sensor_instance.get_current_data):
-                    current_data = await sensor_instance.get_current_data()
-                else:
-                    current_data = sensor_instance.get_current_data()
-                
-                debug_info["sensor_sources"][source_id] = {
-                    "name": source_name,
-                    "active": True,
-                    "sensor_count": len(current_data),
-                    "sensors": current_data
-                }
-                
-                debug_info["total_sensors"] += len(current_data)
-                
-                # Count categories
-                for sensor_data in current_data.values():
-                    category = sensor_data.get("category", "unknown")
-                    if category not in debug_info["categories"]:
-                        debug_info["categories"][category] = 0
-                    debug_info["categories"][category] += 1
-                    
-            except Exception as e:
-                debug_info["sensor_sources"][source_id] = {
-                    "name": source_name,
-                    "active": False,
-                    "error": str(e)
-                }
-        else:
-            debug_info["sensor_sources"][source_id] = {
-                "name": source_name,
-                "active": False,
-                "error": "Source not available"
-            }
-    
-    return debug_info
+@app.get("/api/debug/sensors", response_model=DebugSensorsResponse)
+async def debug_sensors(
+    sensor_service: SensorService = Depends(get_sensor_service),
+) -> DebugSensorsResponse:
+    """Debug endpoint showing detailed sensor source information."""
+    return await sensor_service.get_debug_info()
 
 
 if __name__ == "__main__":
     import uvicorn
+
     print("Starting Ultimate Sensor Monitor Backend...")
     print("Server will be available at: http://localhost:8100")
     print("API documentation: http://localhost:8100/docs")
@@ -460,11 +381,11 @@ if __name__ == "__main__":
     print()
     print("Press Ctrl+C to stop the server")
     print("=" * 50)
-    
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
         port=8100,
         reload=False,
-        log_level="info"
-    ) 
+        log_level="info",
+    )

@@ -1,180 +1,107 @@
 """
-LibreHardwareMonitor sensor integration using direct DLL access via pythonnet.
-Connects to LibreHardwareMonitorLib.dll for real hardware data.
+LibreHardwareMonitor sensor integration using the HardwareMonitor Python package.
+Provides a cleaner interface to LibreHardwareMonitor via the HardwareMonitor PyPI package.
 """
 
-import os
-import sys
-import time
+from __future__ import annotations
+
 import asyncio
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 import logging
+import time
+from abc import abstractmethod
+from datetime import datetime
+
 from .base import BaseSensor
-from ..models import SensorData
+from .utils import generate_sensor_id, map_sensor_type
+from ..models import ApiHardwareNode, SensorData
 
 logger = logging.getLogger(__name__)
 
-# Try to import pythonnet components
 try:
-    import clr
-    import System
-    from System import String
-    PYTHONNET_AVAILABLE = True
+    from HardwareMonitor.Util import OpenComputer
+    HARDWARE_MONITOR_AVAILABLE = True
+    logger.info("HardwareMonitor package loaded successfully")
 except ImportError as e:
-    logger.error(f"pythonnet not available: {e}")
-    PYTHONNET_AVAILABLE = False
+    logger.error(f"HardwareMonitor package not available: {e}")
+    HARDWARE_MONITOR_AVAILABLE = False
 
 
 class LibreHardwareSensor(BaseSensor):
-    """Sensor implementation for LibreHardwareMonitor using direct DLL access."""
-    
-    def __init__(self, dll_path: str = None):
+    """Sensor implementation for LibreHardwareMonitor using the HardwareMonitor package."""
+
+    def __init__(self):
         super().__init__("LibreHardwareMonitor")
-        
-        # Determine DLL path
-        if dll_path:
-            self.dll_path = dll_path
-        else:
-            # Look for DLL in project root (relative to server folder)
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.join(current_dir, "..", "..", "..")
-            self.dll_path = os.path.join(project_root, "LibreHardwareMonitorLib.dll")
-        
-        self.dll_path = os.path.abspath(self.dll_path)
-        
-        # LibreHardwareMonitor objects
         self.computer = None
-        self.is_active = None  # None = not tested yet, True/False = tested
+        self.is_active: bool | None = None
         self._connection_tested = False
-        
-        # Cache
-        self.cached_data = {}
-        self.cache_duration = 1.0  # Cache for 1 second
-        self.last_update = None
-    
-    def _initialize_lhm(self) -> bool:
-        """Initialize LibreHardwareMonitor DLL and Computer object."""
-        if not PYTHONNET_AVAILABLE:
-            logger.error("pythonnet is not available. Please install: pip install pythonnet")
+        self._connection_lock = asyncio.Lock()
+        self.cached_data: dict[str, SensorData] = {}
+        self.cache_duration = 1.0
+        self.last_update: float | None = None
+
+    def _initialize(self) -> bool:
+        """Initialize HardwareMonitor and Computer object."""
+        if not HARDWARE_MONITOR_AVAILABLE:
+            logger.error("HardwareMonitor package is not available")
             return False
-        
-        if not os.path.exists(self.dll_path):
-            logger.error(f"LibreHardwareMonitorLib.dll not found at: {self.dll_path}")
-            return False
-        
+
         try:
-            # Add DLL directory to system path
-            dll_dir = os.path.dirname(self.dll_path)
-            if dll_dir not in sys.path:
-                sys.path.append(dll_dir)
-            
-            # Load the LibreHardwareMonitor assembly
-            logger.info(f"Loading LibreHardwareMonitorLib.dll from: {self.dll_path}")
-            clr.AddReference(self.dll_path)
-            
-            # Import LibreHardwareMonitor types
-            from LibreHardwareMonitor.Hardware import Computer, HardwareType, SensorType
-            
-            # Create Computer instance
-            self.computer = Computer()
-            
-            # Enable all hardware monitoring
-            self.computer.IsCpuEnabled = True
-            self.computer.IsGpuEnabled = True
-            self.computer.IsMemoryEnabled = True
-            self.computer.IsMotherboardEnabled = True
-            self.computer.IsControllerEnabled = True
-            self.computer.IsNetworkEnabled = True
-            self.computer.IsStorageEnabled = True
-            
-            # Open the computer (start monitoring)
-            self.computer.Open()
-            
-            logger.info("✓ LibreHardwareMonitor DLL initialized successfully")
+            self.computer = OpenComputer(
+                motherboard=True,
+                cpu=True,
+                gpu=True,
+                memory=True,
+                storage=True,
+                network=True,
+                controller=True,
+                battery=True,
+            )
+            logger.info("HardwareMonitor initialized successfully with all components enabled")
             return True
-            
         except Exception as e:
-            logger.error(f"Failed to initialize LibreHardwareMonitor DLL: {e}")
+            logger.error(f"Failed to initialize HardwareMonitor: {e}")
             return False
-    
+
     def _test_connection(self) -> bool:
-        """Test if the LibreHardwareMonitor DLL can be loaded and initialized."""
+        """Test if the HardwareMonitor can be initialized."""
         if self._connection_tested:
-            return self.is_active
-        
-        logger.info("Testing LibreHardwareMonitor DLL connection...")
-        
-        self.is_active = self._initialize_lhm()
+            return bool(self.is_active)
+
+        logger.info("Testing HardwareMonitor connection...")
+        self.is_active = self._initialize()
         self._connection_tested = True
-        
+
         if self.is_active:
-            logger.info("✓ LibreHardwareMonitor DLL connection successful")
+            logger.info("HardwareMonitor connection successful")
         else:
-            logger.error("✗ LibreHardwareMonitor DLL connection failed")
-        
-        return self.is_active
-    
-    def _collect_sensor_data_from_dll(self) -> Dict[str, SensorData]:
-        """Collect sensor data directly from LibreHardwareMonitor DLL."""
-        sensors = {}
-        
-        if not self.computer:
-            return sensors
-        
-        try:
-            # Import LibreHardwareMonitor types (needed in this scope)
-            from LibreHardwareMonitor.Hardware import SensorType, HardwareType
-            
-            # Update all hardware sensors
-            for hardware in self.computer.Hardware:
-                hardware.Update()
-                
-                # Process sensors for this hardware
-                self._process_hardware_sensors(hardware, sensors, "")
-                
-                # Process sub-hardware (like individual CPU cores, GPU sensors, etc.)
-                for subhardware in hardware.SubHardware:
-                    subhardware.Update()
-                    parent_path = f"{hardware.Name}"
-                    self._process_hardware_sensors(subhardware, sensors, parent_path)
-            
-        except Exception as e:
-            logger.error(f"Error collecting sensor data from DLL: {e}")
-        
-        return sensors
-    
-    def _process_hardware_sensors(self, hardware, sensors: Dict[str, SensorData], parent_path: str):
+            logger.error("HardwareMonitor connection failed")
+
+        return bool(self.is_active)
+
+    def _process_hardware_sensors(self, hardware, sensors: dict[str, SensorData], parent_path: str) -> None:
         """Process sensors from a hardware object."""
         try:
-            from LibreHardwareMonitor.Hardware import SensorType
-            
             hardware_name = str(hardware.Name)
             current_path = f"{parent_path}/{hardware_name}" if parent_path else hardware_name
-            
+
             for sensor in hardware.Sensors:
                 try:
                     sensor_name = str(sensor.Name)
                     sensor_value = sensor.Value
-                    
-                    # Skip sensors without values
+
                     if sensor_value is None:
                         continue
-                    
-                    # Convert .NET float? to Python float
-                    value = float(sensor_value)
-                    
-                    # Get sensor type and determine category/unit
-                    sensor_type = sensor.SensorType
-                    category, unit = self._map_sensor_type_to_category(sensor_type)
-                    
-                    # Generate unique sensor ID
-                    sensor_id = self._generate_sensor_id_from_hardware(hardware, sensor)
-                    
-                    # Get min/max values if available
+
+                    try:
+                        value = float(sensor_value)
+                    except (ValueError, TypeError):
+                        continue
+
+                    category, unit = map_sensor_type(sensor.SensorType)
+                    sensor_id = generate_sensor_id(hardware, sensor)
                     min_value = float(sensor.Min) if sensor.Min is not None else None
                     max_value = float(sensor.Max) if sensor.Max is not None else None
-                    
+
                     sensors[sensor_id] = SensorData(
                         id=sensor_id,
                         name=sensor_name,
@@ -185,197 +112,131 @@ class LibreHardwareSensor(BaseSensor):
                         min_value=min_value,
                         max_value=max_value,
                         parent=current_path,
-                        timestamp=datetime.now()
+                        timestamp=datetime.now(),
                     )
-                    
                 except Exception as e:
                     logger.debug(f"Failed to process sensor {sensor.Name}: {e}")
-                    
         except Exception as e:
             logger.error(f"Error processing hardware sensors: {e}")
-    
-    def _map_sensor_type_to_category(self, sensor_type) -> tuple[str, str]:
-        """Map LibreHardwareMonitor SensorType to our category and unit."""
+
+    def _collect_sensor_data_sync(self) -> dict[str, SensorData]:
+        """Collect sensor data synchronously from the underlying library."""
+        sensors: dict[str, SensorData] = {}
+
+        if not self.computer:
+            return sensors
+
         try:
-            from LibreHardwareMonitor.Hardware import SensorType
-            
-            # Map sensor types to categories and units
-            type_mapping = {
-                SensorType.Voltage: ("voltage", "V"),
-                SensorType.Clock: ("clock", "MHz"),
-                SensorType.Temperature: ("temperature", "°C"),
-                SensorType.Load: ("load", "%"),
-                SensorType.Fan: ("fan", "RPM"),
-                SensorType.Flow: ("flow", "L/h"),
-                SensorType.Control: ("control", "%"),
-                SensorType.Level: ("level", "%"),
-                SensorType.Factor: ("factor", ""),
-                SensorType.Power: ("power", "W"),
-                SensorType.Data: ("data", "GB"),
-                SensorType.SmallData: ("data", "MB"),
-                SensorType.Throughput: ("throughput", "B/s"),
-                SensorType.TimeSpan: ("time", "s"),
-                SensorType.Energy: ("energy", "mWh"),
-                SensorType.Noise: ("noise", "dBA"),
-            }
-            
-            return type_mapping.get(sensor_type, ("unknown", ""))
-            
+            self.computer.Update()
+            for hardware in self.computer.Hardware:
+                self._process_hardware_sensors(hardware, sensors, "")
+                for subhardware in hardware.SubHardware:
+                    self._process_hardware_sensors(subhardware, sensors, str(hardware.Name))
         except Exception as e:
-            logger.debug(f"Error mapping sensor type: {e}")
-            return ("unknown", "")
-    
-    def _generate_sensor_id_from_hardware(self, hardware, sensor) -> str:
-        """Generate a unique sensor ID from hardware and sensor objects."""
-        try:
-            # Create ID from hardware identifier and sensor identifier
-            hardware_id = str(hardware.Identifier).replace("/", "_").replace(" ", "_")
-            sensor_id = str(sensor.Identifier).replace("/", "_").replace(" ", "_")
-            
-            # Remove special characters and make lowercase
-            import re
-            hardware_id = re.sub(r'[^\w_]', '', hardware_id.lower())
-            sensor_id = re.sub(r'[^\w_]', '', sensor_id.lower())
-            
-            return f"{hardware_id}_{sensor_id}"
-            
-        except Exception as e:
-            logger.debug(f"Error generating sensor ID: {e}")
-            # Fallback to simple name-based ID
-            return f"{hardware.Name}_{sensor.Name}".replace(" ", "_").lower()
-    
-    async def _collect_sensor_data(self) -> Dict[str, SensorData]:
-        """Collect sensor data (async wrapper for sync DLL calls)."""
-        # Check cache first
-        if (self.last_update and 
-            time.time() - self.last_update < self.cache_duration and
-            self.cached_data):
+            logger.error(f"Error collecting sensor data from {self.source_name}: {e}")
+
+        return sensors
+
+    async def _collect_sensor_data(self) -> dict[str, SensorData]:
+        """Collect sensor data asynchronously with caching."""
+        if (
+            self.last_update
+            and time.time() - self.last_update < self.cache_duration
+            and self.cached_data
+        ):
             return self.cached_data
-        
-        # Collect data in thread pool since DLL calls are synchronous
-        loop = asyncio.get_event_loop()
+
         try:
-            sensors = await loop.run_in_executor(None, self._collect_sensor_data_from_dll)
-            
-            # Update cache
+            sensors = await asyncio.to_thread(self._collect_sensor_data_sync)
             self.cached_data = sensors
             self.last_update = time.time()
-            
             return sensors
-            
         except Exception as e:
             logger.error(f"Error in async sensor data collection: {e}")
             return {}
-    
-    def is_available(self) -> bool:
-        """Check if LibreHardwareMonitor DLL is available."""
-        return self._test_connection()
-    
-    async def get_available_sensors(self) -> List[Dict[str, Any]]:
-        """Get list of all available sensors."""
-        if not self.is_available():
+
+    async def is_available(self) -> bool:
+        async with self._connection_lock:
+            return await asyncio.to_thread(self._test_connection)
+
+    async def get_available_sensors(self) -> list[SensorData]:
+        if not await self.is_available():
             return []
-        
         sensors_data = await self._collect_sensor_data()
-        
-        return [
-            {
-                "id": sensor.id,
-                "name": sensor.name,
-                "category": sensor.category,
-                "unit": sensor.unit,
-                "parent": sensor.parent
-            }
-            for sensor in sensors_data.values()
-        ]
-    
-    async def get_current_data(self) -> Dict[str, Any]:
-        """Get current sensor readings."""
-        if not self.is_available():
+        return list(sensors_data.values())
+
+    async def get_current_data(self) -> dict[str, SensorData]:
+        if not await self.is_available():
             return {}
-        
-        sensors_data = await self._collect_sensor_data()
-        
-        return {
-            sensor_id: {
-                "id": sensor.id,
-                "name": sensor.name,
-                "value": sensor.value,
-                "unit": sensor.unit,
-                "category": sensor.category,
-                "min_value": sensor.min_value,
-                "max_value": sensor.max_value,
-                "parent": sensor.parent,
-                "timestamp": sensor.timestamp.isoformat()
-            }
-            for sensor_id, sensor in sensors_data.items()
-        }
-    
-    async def get_sensor_by_id(self, sensor_id: str) -> Optional[Dict[str, Any]]:
-        """Get specific sensor by ID."""
-        sensors_data = await self._collect_sensor_data()
-        sensor = sensors_data.get(sensor_id)
-        
-        if sensor:
-            return {
-                "id": sensor.id,
-                "name": sensor.name,
-                "value": sensor.value,
-                "unit": sensor.unit,
-                "category": sensor.category,
-                "min_value": sensor.min_value,
-                "max_value": sensor.max_value,
-                "parent": sensor.parent,
-                "timestamp": sensor.timestamp.isoformat()
-            }
-        return None
-    
-    async def get_sensors_by_category(self, category: str) -> List[Dict[str, Any]]:
-        """Get all sensors of a specific category."""
-        sensors_data = await self._collect_sensor_data()
-        
-        return [
-            {
-                "id": sensor.id,
-                "name": sensor.name,
-                "value": sensor.value,
-                "unit": sensor.unit,
-                "category": sensor.category,
-                "min_value": sensor.min_value,
-                "max_value": sensor.max_value,
-                "parent": sensor.parent,
-                "timestamp": sensor.timestamp.isoformat()
-            }
-            for sensor in sensors_data.values()
-            if sensor.category == category
-        ]
-    
-    async def refresh(self) -> bool:
-        """Refresh sensor data."""
+        return await self._collect_sensor_data()
+
+    def _build_hardware_node(self, hardware, include_sub_hardware: bool = True) -> ApiHardwareNode:
+        """Build an ApiHardwareNode from a hardware object."""
+        node = ApiHardwareNode(
+            id=generate_sensor_id(hardware, hardware),
+            name=str(hardware.Name),
+            type=str(hardware.HardwareType),
+            sensors=[],
+            sub_hardware=[],
+        )
+
+        for sensor in hardware.Sensors:
+            if sensor.Value is not None:
+                try:
+                    category, unit = map_sensor_type(sensor.SensorType)
+                    node.sensors.append(
+                        SensorData(
+                            id=generate_sensor_id(hardware, sensor),
+                            name=str(sensor.Name),
+                            value=float(sensor.Value),
+                            unit=unit,
+                            category=category,
+                            source=self.source_name,
+                            min_value=float(sensor.Min) if sensor.Min is not None else None,
+                            max_value=float(sensor.Max) if sensor.Max is not None else None,
+                        )
+                    )
+                except Exception:
+                    pass
+
+        if include_sub_hardware and hasattr(hardware, "SubHardware"):
+            for subhardware in hardware.SubHardware:
+                node.sub_hardware.append(self._build_hardware_node(subhardware, include_sub_hardware=False))
+
+        return node
+
+    def _build_hardware_tree_sync(self) -> list[ApiHardwareNode]:
+        """Build the hardware tree recursively."""
+        if not self.computer:
+            return []
+
+        tree: list[ApiHardwareNode] = []
         try:
-            # Clear cache to force refresh
-            self.cached_data = {}
-            self.last_update = None
-            
-            # Collect fresh data
-            await self._collect_sensor_data()
-            return True
-            
+            self.computer.Update()
+            for hardware in self.computer.Hardware:
+                tree.append(self._build_hardware_node(hardware, include_sub_hardware=True))
         except Exception as e:
-            logger.error(f"Error refreshing sensor data: {e}")
-            return False
-    
-    def close(self):
-        """Clean up LibreHardwareMonitor resources."""
+            logger.error(f"Error getting hardware tree: {e}")
+
+        return tree
+
+    async def get_hardware_tree(self) -> list[ApiHardwareNode]:
+        """Get hierarchical view of all hardware and sensors."""
+        if not await self.is_available():
+            return []
+        return await asyncio.to_thread(self._build_hardware_tree_sync)
+
+    def close(self) -> None:
+        """Clean up HardwareMonitor resources."""
         try:
             if self.computer:
-                logger.info("Closing LibreHardwareMonitor...")
+                logger.info("Closing HardwareMonitor...")
                 self.computer.Close()
                 self.computer = None
-                logger.info("✓ LibreHardwareMonitor closed successfully")
+                logger.info("HardwareMonitor closed successfully")
         except Exception as e:
-            logger.error(f"Error closing LibreHardwareMonitor: {e}")
-    
-    def __del__(self):
+            logger.error(f"Error closing HardwareMonitor: {e}")
+
+    def __del__(self) -> None:
         """Destructor to ensure cleanup."""
-        self.close() 
+        self.close()

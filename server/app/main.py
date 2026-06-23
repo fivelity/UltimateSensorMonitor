@@ -39,6 +39,7 @@ from .schemas import (
     WidgetGroupSaveResponse,
 )
 from .services import PresetService, SensorService, WidgetGroupService
+from .sensors.base import BaseSensor
 from .sensors.hwinfo_sensor import HWiNFOSensor
 from .sensors.librehardware_sensor import LibreHardwareSensor
 from .sensors.mock_sensor import MockSensor
@@ -59,15 +60,23 @@ widget_group_service = WidgetGroupService(widget_group_repository)
 
 websocket_manager = WebSocketManager(max_connections=settings.max_websocket_connections)
 
-mock_sensor = MockSensor()
-librehw_sensor = LibreHardwareSensor()
-hwinfo_sensor = HWiNFOSensor()
+# Build the sensor source list based on the enabled flags in settings.
+# Mock data is opt-in only so tests reflect real hardware behavior.
+sensor_sources: list[tuple[str, str, BaseSensor]] = []
 
-sensor_sources = [
-    ("mock", "Mock Sensor Data", mock_sensor),
-    ("librehardware", "LibreHardwareMonitor", librehw_sensor),
-    ("hwinfo", "HWiNFO64", hwinfo_sensor),
-]
+if settings.mock_sensor_enabled:
+    mock_sensor = MockSensor()
+    sensor_sources.append(("mock", "Mock Sensor Data", mock_sensor))
+
+librehw_sensor: LibreHardwareSensor | None = None
+if settings.libre_hardware_monitor_enabled:
+    librehw_sensor = LibreHardwareSensor()
+    sensor_sources.append(("librehardware", "LibreHardwareMonitor", librehw_sensor))
+
+hwinfo_sensor: HWiNFOSensor | None = None
+if settings.hwinfo_enabled:
+    hwinfo_sensor = HWiNFOSensor()
+    sensor_sources.append(("hwinfo", "HWiNFO64", hwinfo_sensor))
 
 sensor_service = SensorService(sensor_sources)
 
@@ -138,6 +147,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pass
 
     for sensor in [librehw_sensor, hwinfo_sensor]:
+        if sensor is None:
+            continue
         try:
             if hasattr(sensor, "close"):
                 sensor.close()

@@ -21,6 +21,7 @@
   import { widgetUtils } from "$lib/stores/data/widgets";
   import type { GaugeSettings, GaugeType, WidgetConfig } from "$lib/types";
   import { logger } from "$lib/utils/logger";
+  import { onMount } from "svelte";
 
   let showLeftSidebar = $state(false);
   let showRightSidebar = $state(false);
@@ -31,13 +32,24 @@
   let config: AppConfig | null = $state(null);
   let initializationError: string | null = $state(null);
 
-  $effect(() => {
+  onMount(() => {
+    let cancelled = false;
     let keydownHandler: ((_event: KeyboardEvent) => void) | null = null;
+
+    // Safety timeout: ensure the loading screen never gets stuck indefinitely,
+    // even if an API call hangs or an unexpected error occurs.
+    const safetyTimeout = setTimeout(() => {
+      if (!cancelled && !hasInitialized && !initializationError) {
+        logger.warn("[App] Initialization timed out after 15s, showing app");
+        hasInitialized = true;
+      }
+    }, 15000);
 
     (async () => {
       try {
         // Load configuration first
         config = await configService.loadConfig();
+        if (cancelled) return;
         logger.debug("[App] Configuration loaded:", config);
 
         // Set UI defaults from config
@@ -55,19 +67,31 @@
         // Start application initialization
         await initializeApplication();
       } catch (error) {
+        if (cancelled) return;
         logger.error("[App] Initialization failed:", error);
         initializationError =
           error instanceof Error
             ? error.message
             : "Unknown initialization error";
-      }
+      } finally {
+        if (!cancelled) {
+          clearTimeout(safetyTimeout);
+          // Ensure hasInitialized is always set, even if initializeApplication
+          // returned early due to a null config or other edge case.
+          if (!hasInitialized && !initializationError) {
+            hasInitialized = true;
+          }
+        }
 
-      // Set up keyboard shortcuts
-      keydownHandler = setupKeyboardShortcuts();
-      document.addEventListener("keydown", keydownHandler);
+        // Set up keyboard shortcuts
+        keydownHandler = setupKeyboardShortcuts();
+        document.addEventListener("keydown", keydownHandler);
+      }
     })();
 
     return () => {
+      cancelled = true;
+      clearTimeout(safetyTimeout);
       if (keydownHandler) {
         document.removeEventListener("keydown", keydownHandler);
       }

@@ -10,21 +10,23 @@
   import type { SensorData } from "$lib/types";
   import { logger } from "$lib/utils/logger";
   import type { Snippet } from "svelte";
+  import { onMount } from "svelte";
   import "../app.css";
 
   const { children }: { children: Snippet } = $props();
 
-  $effect(() => {
+  onMount(() => {
+    let cancelled = false;
     let unsubscribeVisualSettings: (() => void) | undefined;
     let websocketUnsubscribe: (() => void) | undefined;
 
-    // Async initialization wrapped in an IIFE so $effect stays synchronous
     (async () => {
       // Initialize stores when the app starts
       initializeStores();
 
       // Fetch initial sensor sources and hardware tree
       await loadInitialSensorData();
+      if (cancelled) return;
 
       // Start WebSocket connection (only in browser)
       if (typeof window !== "undefined") {
@@ -53,6 +55,8 @@
           connectionStatus.set("error");
         }
       }
+
+      if (cancelled) return;
 
       // Apply initial visual settings to CSS variables
       unsubscribeVisualSettings = visualSettings.subscribe((settings) => {
@@ -94,6 +98,7 @@
 
     // Cleanup function
     return () => {
+      cancelled = true;
       if (unsubscribeVisualSettings) {
         unsubscribeVisualSettings();
       }

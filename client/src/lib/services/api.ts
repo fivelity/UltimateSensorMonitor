@@ -24,13 +24,22 @@ class ApiService {
     options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
     try {
+      // Add a timeout so requests can't hang indefinitely when the backend
+      // is down or unresponsive. The Vite dev proxy may return a 500 or hang
+      // when the backend is unavailable.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
           "Content-Type": "application/json",
           ...options.headers,
         },
+        signal: controller.signal,
         ...options,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

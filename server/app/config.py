@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     max_preset_size: int = 10 * 1024 * 1024  # 10MB
 
     # Sensor settings
-    mock_sensor_enabled: bool = True
+    mock_sensor_enabled: bool = False  # Disabled by default; enable only for offline dev
     aida64_enabled: bool = False
     libre_hardware_monitor_enabled: bool = True  # Enable LibreHardwareMonitor by default
     hwinfo_enabled: bool = False

@@ -1,134 +1,75 @@
-# Ultimate Sensor Monitor - Backend Server Launchers
+# Ultimate Sensor Monitor - Server Launchers
 
-This directory contains multiple scripts to easily launch the Ultimate Sensor Monitor backend server. Choose the one that works best for your environment.
+The project root contains the launcher scripts. There is no longer a set of
+per-variant scripts inside `server/` — the root launchers detect the virtual
+environment and handle admin elevation directly.
 
-## 🚀 Quick Start
+## Available launchers (in project root)
 
-### Option 1: Windows Batch File (Recommended for Windows)
-```bash
-# Double-click or run from command prompt
-start_backend.bat
-```
+| Script | Platform | Purpose |
+|--------|----------|---------|
+| `start_backend.py` | Cross-platform | Starts only the FastAPI backend (auto-reload). |
+| `start_ultimon_full.ps1` | Windows | Starts backend (elevated) **and** SvelteKit frontend. |
+| `start_services.sh` | Linux / macOS / WSL | Manages both services with start/stop/status/logs. |
 
-### Option 2: PowerShell Script (Windows with PowerShell)
+## Quick start
+
+### Windows (full stack)
 ```powershell
-# Run from PowerShell
-.\start_backend.ps1
+.\start_ultimon_full.ps1
 ```
+The backend launches in an elevated window (required for LibreHardwareMonitor
+hardware sensor access); the frontend runs in the current terminal.
 
-### Option 3: Python Script (Cross-platform)
+### Backend only (any platform)
 ```bash
-# Works on Windows, macOS, and Linux
 python start_backend.py
 ```
+On Windows, run from an elevated terminal for full hardware sensor access.
 
-## 📋 What These Scripts Do
-
-All launcher scripts perform the same basic steps:
-
-1. **✅ Environment Check**: Verify you're in the correct directory
-2. **🐍 Python Environment**: Automatically detect and activate virtual environment if available
-3. **🚀 Server Launch**: Start the FastAPI server with proper configuration
-
-## 🌐 Server Details
-
-Once started, the server will be available at:
-
-- **Main Server**: http://localhost:8100
-- **API Documentation**: http://localhost:8100/docs (Interactive Swagger UI)
-- **WebSocket Endpoint**: ws://localhost:8100/ws
-- **Alternative Docs**: http://localhost:8100/redoc (ReDoc UI)
-
-## 🔧 Prerequisites
-
-### Required
-- **Python 3.8+** installed and available in PATH
-- **Dependencies installed** (see installation section)
-
-### Optional but Recommended
-- **Virtual Environment** set up in `server/venv/`
-- **Administrator privileges** (for hardware sensor access)
-
-## 📦 Installation
-
-If you haven't set up the backend yet:
-
+### Linux / macOS / WSL
 ```bash
-# Navigate to server directory
-cd server
-
-# Create virtual environment (recommended)
-python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+./start_services.sh start    # start both
+./start_services.sh status   # check status
+./start_services.sh stop     # stop both
+./start_services.sh logs     # tail logs
 ```
 
-## 🛠️ Troubleshooting
+## Server details
 
-### Common Issues
+Once started, the backend is available at:
 
-**"server directory not found"**
-- Make sure you're running the script from the `UltimateSensorMonitor` root directory
-- The script should be in the same folder as the `server/` directory
+- **Server**: http://localhost:8100
+- **API docs (Swagger)**: http://localhost:8100/docs
+- **API docs (ReDoc)**: http://localhost:8100/redoc
+- **WebSocket**: ws://localhost:8100/ws
 
-**"Python not found"**
-- Ensure Python is installed and added to your system PATH
-- Try using `python3` instead of `python` on macOS/Linux
+## Prerequisites
 
-**"Module 'uvicorn' not found"**
-- Install dependencies: `pip install -r requirements.txt`
-- Make sure you're using the correct Python environment
+- **Python 3.10+** with a virtual environment at the project root (`.venv`).
+  The launchers auto-detect `.venv`, `server/.venv`, or `server/venv`.
+- Dependencies installed: `pip install -r server/requirements.txt`
+- **Node.js 18+** and `npm install` run in `client/` (for the frontend).
+- **Administrator privileges** on Windows for hardware sensor access.
 
-**Permission errors on Windows**
-- Run as Administrator for full hardware sensor access
-- Some sensors require elevated privileges
+## Troubleshooting
 
-**Port 8100 already in use**
-- Stop any existing server instances
-- Check for other applications using port 8100
-- Modify the port in the script if needed
+**"server directory not found"** — run the launcher from the project root
+(the folder containing `server/` and `client/`).
 
-### Getting Help
+**"Module 'uvicorn' not found"** — install dependencies into the active
+virtual environment: `pip install -r server/requirements.txt`.
 
-1. **Check server logs** - The console output will show detailed error messages
-2. **Verify installation** - Ensure all requirements are installed
-3. **Test manually** - Try running: `python -m uvicorn app.main:app --port 8100`
+**Hardware sensors unavailable** — on Windows, LibreHardwareMonitor requires
+admin privileges. Use `start_ultimon_full.ps1` (auto-elevates) or run
+`python start_backend.py` from an elevated terminal.
 
-## 🎯 Usage Tips
+**Port 8100 already in use** — stop any existing backend instance, or change
+the port in `server/app/config.py` (`ULTIMON_PORT` env var).
 
-### Development Mode
-All scripts start the server in development mode with auto-reload enabled. The server will automatically restart when you make changes to the code.
+## Related files
 
-### Production Mode
-For production deployment, modify the scripts to remove the `--reload` flag and consider using proper WSGI servers like Gunicorn.
-
-### Custom Configuration
-You can modify the scripts to change:
-- Port number (default: 8100)
-- Host binding (default: 0.0.0.0 for all interfaces)
-- Reload behavior
-- Log levels
-
-## 📁 File Overview
-
-- `start_backend.bat` - Windows batch file (double-click friendly)
-- `start_backend.ps1` - PowerShell script (enhanced Windows experience)
-- `start_backend.py` - Cross-platform Python launcher
-- `README_BACKEND_LAUNCHER.md` - This documentation file
-
-## 🔗 Related Files
-
-- `server/app/main.py` - Main FastAPI application
-- `server/requirements.txt` - Python dependencies
-- `server/venv/` - Virtual environment (if created)
-
----
-
-**Happy monitoring!** 🎉 
+- `server/app/main.py` — FastAPI application entry point
+- `server/app/config.py` — configuration (host, port, sensor toggles)
+- `server/requirements.txt` — Python dependencies
+- `test_connection.py` — connectivity test for backend, WebSocket, and frontend

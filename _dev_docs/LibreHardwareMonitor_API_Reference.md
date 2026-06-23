@@ -359,11 +359,11 @@ WARNING: Sensor cpu_temp_invalid has no value, skipping
 # Test backend connectivity and sensor data
 python test_connection.py
 
-# Start with admin privileges
-start_ultimon_full.bat
+# Start with admin privileges (Windows full stack)
+.\start_ultimon_full.ps1
 
-# Backend-only testing
-server/start_server_simple.bat
+# Backend-only testing (any platform)
+python start_backend.py
 ```
 
 ### Validation Checklist

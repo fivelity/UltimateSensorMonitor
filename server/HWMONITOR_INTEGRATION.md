@@ -57,9 +57,11 @@ The updated implementation is available as "LibreHardwareMonitor Updated" in the
    server\test_hwmonitor_admin.bat
    ```
 
-2. **Start the server:**
-   ```bash
-   server\start_server_conda.bat
+2. **Start the server (from project root):**
+   ```powershell
+   python start_backend.py
+   # or full stack (auto-elevates backend for hardware access):
+   .\start_ultimon_full.ps1
    ```
 
 3. **Test the API endpoint:**

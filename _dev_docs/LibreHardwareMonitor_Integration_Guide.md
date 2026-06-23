@@ -407,8 +407,8 @@ Use the provided test scripts:
 # Test backend connection and sensor data
 python test_connection.py
 
-# Start services with proper privileges
-start_ultimon_full.bat
+# Start services with proper privileges (Windows full stack)
+.\start_ultimon_full.ps1
 ```
 
 ## Security Considerations

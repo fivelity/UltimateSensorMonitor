@@ -46,9 +46,11 @@ This guide will help you set up the Ultimate Sensor Monitor backend on Windows u
 
 ## Starting the Server
 
-### Option 1: Using the start script
-```cmd
-start_server.bat
+### Option 1: Using the launcher script (from project root)
+```powershell
+.\start_ultimon_full.ps1   # full stack (elevates backend automatically)
+# or backend only:
+python start_backend.py
 ```
 
 ### Option 2: Manual start

@@ -51,7 +51,7 @@ A highly customizable, visually rich, and dynamically animated hardware monitori
 ## 📋 Prerequisites
 
 - Node.js (v18+ recommended)
-- Python 3.8+
+- Python 3.10+
 - npm or pnpm package manager
 
 ## 🛠️ Installation & Setup
@@ -64,18 +64,13 @@ cd UltimateSensorMonitor
 
 ### 2. Backend Setup
 ```bash
-cd server
-
-# Create virtual environment
+# Create virtual environment at the project root
 python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
+source .venv/bin/activate  # Linux/macOS/WSL
 # .venv\Scripts\activate    # Windows
 
 # Install dependencies
-pip install -r requirements.txt
-
-# Start the server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+pip install -r server/requirements.txt
 ```
 
 ### 3. Frontend Setup
@@ -83,7 +78,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 cd client
 
 # Install dependencies
-npm install --legacy-peer-deps
+npm install
 
 # Generate SvelteKit configuration
 npx svelte-kit sync
@@ -92,10 +87,27 @@ npx svelte-kit sync
 npm run dev
 ```
 
-### 4. Access the Application
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+### 4. Start the Application
+
+**Windows (full stack, auto-elevates backend for hardware access):**
+```powershell
+.\start_ultimon_full.ps1
+```
+
+**Backend only (cross-platform):**
+```bash
+python start_backend.py
+```
+
+**Linux / macOS / WSL (service manager):**
+```bash
+./start_services.sh start
+```
+
+### 5. Access the Application
+- Frontend: http://localhost:5501
+- Backend API: http://localhost:8100
+- API Documentation: http://localhost:8100/docs
 
 ## 🎮 Usage Guide
 

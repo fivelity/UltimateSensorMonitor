@@ -1,9 +1,38 @@
 <script lang="ts">
-  import { editMode, selectedWidgets, visualSettings } from "$lib/stores";
+  import {
+    activeSnapGuides,
+    dashboardInteraction,
+    editMode,
+    handleKeyboardShortcut,
+    selectedWidgets,
+    visualSettings,
+    visualUtils,
+    widgetArray,
+    widgetCount,
+    widgetUtils,
+  } from "$lib/stores";
   import { uiUtils } from "$lib/stores/core/ui";
-  import { widgetArray, widgetUtils } from "$lib/stores/data/widgets";
-  import type { Bounds, Point, WidgetConfig } from "$lib/types";
+  import { AddWidgetCommand, historyStore } from "$lib/stores/history";
+  import type { Bounds, GaugeType, Point, WidgetConfig } from "$lib/types";
+  import { snapToGrid } from "$lib/utils/geometry";
+  import { logger } from "$lib/utils/logger";
+  import {
+    Grid3X3,
+    Magnet,
+    MousePointer2,
+    Plus,
+    RotateCcw,
+    RotateCw,
+  } from "@lucide/svelte";
+  import { get } from "svelte/store";
+  import SnapGuides from "./SnapGuides.svelte";
   import WidgetContainer from "./widgets/core/WidgetContainer.svelte";
+
+  interface Props {
+    onopenLeftSidebar?: () => void;
+  }
+
+  const { onopenLeftSidebar }: Props = $props();
 
   interface SelectionRect {
     left: number;
@@ -13,23 +42,28 @@
   }
 
   let canvasElement: HTMLDivElement | undefined = $state();
+  let canvasContentElement: HTMLDivElement | undefined = $state();
   let isSelecting = $state(false);
   let selectionStart = $state<Point>({ x: 0, y: 0 });
   let selectionEnd = $state<Point>({ x: 0, y: 0 });
+  let isDragOver = $state(false);
 
   $effect(() => {
     if (!canvasElement) return;
 
     const handleMouseDown = (event: MouseEvent) => {
-      if ($editMode !== "edit") return;
+      if (get(dashboardInteraction).mode === "dragging") return;
 
       const target = event.target as Element;
-
-      // Only start selection if clicking on the canvas itself
       if (
         target === canvasElement ||
+        target === canvasContentElement ||
         target.closest("[data-canvas-background]")
       ) {
+        if ($editMode !== "edit") {
+          uiUtils.clearSelection();
+          return;
+        }
         startSelection(event);
       }
     };
@@ -42,14 +76,20 @@
       if (isSelecting) finishSelection(event);
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      handleKeyboardShortcut(event);
+    };
+
     canvasElement.addEventListener("mousedown", handleMouseDown);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       canvasElement?.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   });
 
@@ -58,8 +98,8 @@
     isSelecting = true;
     const rect = canvasElement.getBoundingClientRect();
     selectionStart = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: event.clientX - rect.left + canvasElement.scrollLeft,
+      y: event.clientY - rect.top + canvasElement.scrollTop,
     };
     selectionEnd = { ...selectionStart };
 
@@ -72,8 +112,8 @@
     if (!isSelecting || !canvasElement) return;
     const rect = canvasElement.getBoundingClientRect();
     selectionEnd = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: event.clientX - rect.left + canvasElement.scrollLeft,
+      y: event.clientY - rect.top + canvasElement.scrollTop,
     };
   }
 
@@ -149,7 +189,94 @@
     uiUtils.clearSelection();
   }
 
-  // Selection rect for display
+  function handleDragOver(event: DragEvent) {
+    if ($editMode !== "edit") return;
+    event.preventDefault();
+    isDragOver = true;
+  }
+
+  function handleDragLeave(event: DragEvent) {
+    const target = event.target as Element;
+    if (target === canvasElement || target === canvasContentElement) {
+      isDragOver = false;
+    }
+  }
+
+  function handleDrop(event: DragEvent) {
+    if ($editMode !== "edit" || !canvasContentElement) return;
+    event.preventDefault();
+    isDragOver = false;
+
+    const sensorId = event.dataTransfer?.getData("sensorId");
+    const gaugeType = (event.dataTransfer?.getData("gaugeType") ||
+      "text") as GaugeType;
+    if (!sensorId) return;
+
+    const contentRect = canvasContentElement.getBoundingClientRect();
+    let x = event.clientX - contentRect.left;
+    let y = event.clientY - contentRect.top;
+
+    if ($visualSettings.snap_to_grid && $visualSettings.grid_size > 0) {
+      x = snapToGrid(x, $visualSettings.grid_size);
+      y = snapToGrid(y, $visualSettings.grid_size);
+    }
+
+    x = Math.max(0, x);
+    y = Math.max(0, y);
+
+    createWidgetFromSensor(sensorId, gaugeType, x, y);
+  }
+
+  function createWidgetFromSensor(
+    sensorId: string,
+    gaugeType: GaugeType,
+    x: number,
+    y: number,
+  ) {
+    const widget: WidgetConfig = {
+      id: `widget_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      sensor_id: sensorId,
+      gauge_type: gaugeType,
+      pos_x: x,
+      pos_y: y,
+      width: 200,
+      height: 120,
+      rotation: 0,
+      z_index: 1,
+      is_locked: false,
+      show_label: true,
+      show_unit: true,
+      gauge_settings: {},
+      style_settings: {},
+    };
+
+    historyStore.executeCommand(
+      new AddWidgetCommand(
+        widget,
+        widgetUtils.addWidget,
+        widgetUtils.removeWidget,
+      ),
+    );
+    selectedWidgets.set({ type: "widget", ids: [widget.id] });
+    logger.debug(`[DashboardCanvas] Created widget from sensor ${sensorId}`);
+  }
+
+  function toggleEditMode() {
+    editMode.update((mode) => (mode === "edit" ? "view" : "edit"));
+  }
+
+  function handleUndo() {
+    historyStore.undo();
+  }
+
+  function handleRedo() {
+    historyStore.redo();
+  }
+
+  function handleGridSizeChange(newSize: number) {
+    visualUtils.setGridSize(newSize);
+  }
+
   const selectionRect = $derived<SelectionRect | null>(
     isSelecting
       ? {
@@ -160,23 +287,77 @@
         }
       : null,
   );
+
+  const canUndo = $derived($historyStore?.currentIndex >= 0);
+  const canRedo = $derived(
+    $historyStore?.currentIndex < $historyStore?.commands.length - 1,
+  );
 </script>
 
 <div
   bind:this={canvasElement}
   class="dashboard-canvas w-full h-full relative overflow-auto bg-[var(--theme-background)] cursor-default"
   class:cursor-crosshair={$editMode === "edit"}
+  class:drag-over={isDragOver}
   role="application"
+  tabindex="0"
   aria-label="Dashboard canvas"
-  tabindex="-1"
+  onkeydown={handleKeyboardShortcut}
   oncontextmenu={handleCanvasRightClick}
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
   data-canvas-background
 >
-  <!-- Canvas content area -->
   <div
+    bind:this={canvasContentElement}
     class="canvas-content relative min-w-full min-h-full"
     style="width: max(100%, 1920px); height: max(100%, 1080px);"
   >
+    {#if $widgetCount === 0}
+      <div
+        class="empty-state absolute inset-0 flex items-center justify-center p-8"
+      >
+        <div
+          class="empty-state-card max-w-md text-center p-8 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-lg"
+        >
+          <MousePointer2
+            size={48}
+            class="mx-auto mb-4 text-[var(--theme-primary)]"
+          />
+          <h3 class="text-lg font-semibold text-[var(--theme-text)] mb-2">
+            No widgets yet
+          </h3>
+          <p class="text-sm text-[var(--theme-text-muted)] mb-6">
+            {#if $editMode === "edit"}
+              Drag sensors from the sidebar onto the canvas, or add your first
+              widget from the sensor list.
+            {:else}
+              Switch to Edit mode to add sensors and build your dashboard.
+            {/if}
+          </p>
+          <div class="flex items-center justify-center gap-3">
+            {#if $editMode === "edit"}
+              <button
+                class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
+                onclick={() => onopenLeftSidebar?.()}
+              >
+                <Plus size={16} />
+                Open Sensor List
+              </button>
+            {:else}
+              <button
+                class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
+                onclick={toggleEditMode}
+              >
+                Switch to Edit Mode
+              </button>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Widgets -->
     {#each $widgetArray as widget (widget.id)}
       <WidgetContainer
@@ -188,25 +369,95 @@
       />
     {/each}
 
+    <!-- Snap guides -->
+    <SnapGuides guides={$activeSnapGuides} />
+
     <!-- Selection rectangle -->
     {#if selectionRect && $editMode === "edit"}
       <div
         class="selection-rectangle absolute border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)]/20 pointer-events-none rounded"
-        style="
-          left: {selectionRect.left}px;
-          top: {selectionRect.top}px;
-          width: {selectionRect.width}px;
-          height: {selectionRect.height}px;
-        "
+        style=""
+        style:left="{selectionRect.left}px"
+        style:top="{selectionRect.top}px"
+        style:width="{selectionRect.width}px"
+        style:height="{selectionRect.height}px"
       ></div>
     {/if}
 
-    <!-- Grid overlay (dynamic size based on settings) -->
+    <!-- Grid overlay -->
     {#if $editMode === "edit" && $visualSettings.show_grid}
       <div
         class="grid-overlay absolute inset-0 pointer-events-none opacity-30"
         style="--grid-size: {$visualSettings.grid_size}px"
       ></div>
+    {/if}
+
+    <!-- Floating canvas toolbar -->
+    {#if $editMode === "edit"}
+      <div
+        class="canvas-toolbar absolute bottom-4 right-4 flex items-center gap-1 p-2 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-lg"
+      >
+        <button
+          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+          class:text-[var(--theme-primary)]={$visualSettings.show_grid}
+          onclick={() => visualUtils.toggleGrid()}
+          title={$visualSettings.show_grid ? "Hide grid" : "Show grid"}
+          aria-label={$visualSettings.show_grid ? "Hide grid" : "Show grid"}
+        >
+          <Grid3X3 size={16} />
+        </button>
+
+        <button
+          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+          class:text-[var(--theme-primary)]={$visualSettings.snap_to_grid}
+          onclick={() => visualUtils.toggleSnap()}
+          title={$visualSettings.snap_to_grid ? "Disable snap" : "Enable snap"}
+          aria-label={$visualSettings.snap_to_grid
+            ? "Disable snap"
+            : "Enable snap"}
+        >
+          <Magnet size={16} />
+        </button>
+
+        <div class="h-6 w-px bg-[var(--theme-border)] mx-1"></div>
+
+        <select
+          class="h-8 px-2 text-xs bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)]"
+          value={$visualSettings.grid_size}
+          onchange={(e) =>
+            handleGridSizeChange(parseInt(e.currentTarget.value))}
+          title="Grid size"
+          aria-label="Grid size"
+        >
+          <option value={1}>1px</option>
+          <option value={5}>5px</option>
+          <option value={10}>10px</option>
+          <option value={20}>20px</option>
+          <option value={50}>50px</option>
+        </select>
+
+        <div class="h-6 w-px bg-[var(--theme-border)] mx-1"></div>
+
+        <button
+          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-40"
+          disabled={!canUndo}
+          onclick={handleUndo}
+          title="Undo (Ctrl+Z)"
+          aria-label="Undo"
+        >
+          <RotateCcw size={16} />
+        </button>
+
+        <button
+          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-40"
+          disabled={!canRedo}
+          onclick={handleRedo}
+          title="Redo (Ctrl+Shift+Z)"
+          aria-label="Redo"
+        >
+          <RotateCw size={16} />
+        </button>
+      </div>
     {/if}
   </div>
 </div>
@@ -217,6 +468,15 @@
     contain: layout style;
   }
 
+  .dashboard-canvas:focus {
+    outline: none;
+  }
+
+  .dashboard-canvas:focus-visible {
+    outline: 2px solid var(--theme-primary);
+    outline-offset: -2px;
+  }
+
   .canvas-content {
     position: relative;
     background-image: radial-gradient(
@@ -225,6 +485,18 @@
       transparent 0
     );
     background-size: 20px 20px;
+  }
+
+  .drag-over .canvas-content {
+    background-color: rgba(var(--theme-primary-rgb), 0.05);
+  }
+
+  .empty-state {
+    pointer-events: none;
+  }
+
+  .empty-state-card {
+    pointer-events: auto;
   }
 
   .selection-rectangle {
@@ -239,7 +511,6 @@
     background-size: var(--grid-size) var(--grid-size);
   }
 
-  /* For very small grids, use dots instead of lines */
   .grid-overlay[style*="--grid-size: 1px"],
   .grid-overlay[style*="--grid-size: 2px"],
   .grid-overlay[style*="--grid-size: 3px"],
@@ -252,13 +523,15 @@
     );
   }
 
-  /* Performance optimizations */
   .grid-overlay {
     will-change: background-size;
     contain: style layout;
   }
 
-  /* Smooth selection animation */
+  .canvas-toolbar {
+    z-index: 1000;
+  }
+
   @keyframes selection-pulse {
     0% {
       border-color: var(--theme-primary);

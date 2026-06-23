@@ -163,9 +163,10 @@
   }
 
   function importPreset(preset: DashboardPreset) {
-    // Clear current widgets and groups
+    // Clear current widgets, groups, and history to avoid undoing across resets
     widgetUtils.clearAllWidgets();
     widgetUtils.clearAllGroups();
+    historyStore.clear();
 
     // Import widgets
     preset.widgets.forEach((widget) => {
@@ -321,7 +322,7 @@
           onclick={() => historyStore.redo()}
           disabled={!canRedo}
           class="p-2 rounded-md text-[var(--theme-text-muted)] hover:bg-[var(--theme-background)] hover:text-[var(--theme-text)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
-          title="Redo (Ctrl+Y)"
+          title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
           aria-label="Redo"
         >
           <RotateCw size={16} />

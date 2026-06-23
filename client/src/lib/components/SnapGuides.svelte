@@ -1,228 +1,31 @@
 <script lang="ts">
-  import { visualSettings, widgets } from "$lib/stores";
-  import type { WidgetConfig } from "$lib/types";
+  import type { SnapGuide } from "$lib/stores/interactions/snap";
 
   interface Props {
-    activeWidget: WidgetConfig | null;
-    isDragging: boolean;
+    guides: SnapGuide[];
   }
 
-  const { activeWidget, isDragging }: Props = $props();
-
-  interface SnapGuide {
-    type: "horizontal" | "vertical";
-    position: number;
-    widgets: string[];
-    color: string;
-    colorRgb: string;
-  }
-
-  let snapGuides = $state<SnapGuide[]>([]);
-  const snapDistance = 10; // pixels
-
-  $effect(() => {
-    if (activeWidget && isDragging && $visualSettings.snap_to_grid) {
-      calculateSnapGuides();
-    } else {
-      snapGuides = [];
-    }
-  });
-
-  function calculateSnapGuides() {
-    if (!activeWidget) return;
-
-    const guides: SnapGuide[] = [];
-    const allWidgets = Object.values($widgets).filter(
-      (w) => w.id !== activeWidget.id,
-    );
-
-    // Calculate horizontal guides (Y positions)
-    const yPositions = new Map<number, string[]>();
-
-    allWidgets.forEach((widget) => {
-      // Top edge
-      addToPositionMap(yPositions, widget.pos_y, widget.id);
-      // Bottom edge
-      addToPositionMap(yPositions, widget.pos_y + widget.height, widget.id);
-      // Center
-      addToPositionMap(yPositions, widget.pos_y + widget.height / 2, widget.id);
-    });
-
-    // Calculate vertical guides (X positions)
-    const xPositions = new Map<number, string[]>();
-
-    allWidgets.forEach((widget) => {
-      // Left edge
-      addToPositionMap(xPositions, widget.pos_x, widget.id);
-      // Right edge
-      addToPositionMap(xPositions, widget.pos_x + widget.width, widget.id);
-      // Center
-      addToPositionMap(xPositions, widget.pos_x + widget.width / 2, widget.id);
-    });
-
-    // Create horizontal guides
-    yPositions.forEach((widgetIds, y) => {
-      if (
-        isNearPosition(activeWidget.pos_y, y) ||
-        isNearPosition(activeWidget.pos_y + activeWidget.height, y) ||
-        isNearPosition(activeWidget.pos_y + activeWidget.height / 2, y)
-      ) {
-        const { color, colorRgb } = getGuideColor(widgetIds.length);
-        guides.push({
-          type: "horizontal",
-          position: y,
-          widgets: widgetIds,
-          color,
-          colorRgb,
-        });
-      }
-    });
-
-    // Create vertical guides
-    xPositions.forEach((widgetIds, x) => {
-      if (
-        isNearPosition(activeWidget.pos_x, x) ||
-        isNearPosition(activeWidget.pos_x + activeWidget.width, x) ||
-        isNearPosition(activeWidget.pos_x + activeWidget.width / 2, x)
-      ) {
-        const { color, colorRgb } = getGuideColor(widgetIds.length);
-        guides.push({
-          type: "vertical",
-          position: x,
-          widgets: widgetIds,
-          color,
-          colorRgb,
-        });
-      }
-    });
-
-    snapGuides = guides;
-  }
-
-  function addToPositionMap(
-    map: Map<number, string[]>,
-    position: number,
-    widgetId: string,
-  ) {
-    const rounded = Math.round(position);
-    if (!map.has(rounded)) {
-      map.set(rounded, []);
-    }
-    map.get(rounded)!.push(widgetId);
-  }
-
-  function isNearPosition(pos1: number, pos2: number): boolean {
-    return Math.abs(pos1 - pos2) <= snapDistance;
-  }
-
-  function getGuideColor(widgetCount: number): {
-    color: string;
-    colorRgb: string;
-  } {
-    if (widgetCount >= 3)
-      return {
-        color: "var(--theme-danger)",
-        colorRgb: "var(--theme-danger-rgb)",
-      };
-    if (widgetCount === 2)
-      return {
-        color: "var(--theme-warning)",
-        colorRgb: "var(--theme-warning-rgb)",
-      };
-    return {
-      color: "var(--theme-primary)",
-      colorRgb: "var(--theme-primary-rgb)",
-    };
-  }
-
-  // Snap calculation function that can be called from parent
-  export function calculateSnap(
-    newX: number,
-    newY: number,
-  ): { x: number; y: number } {
-    if (!activeWidget || !$visualSettings.snap_to_grid) {
-      return { x: newX, y: newY };
-    }
-
-    let snappedX = newX;
-    let snappedY = newY;
-
-    const allWidgets = Object.values($widgets).filter(
-      (w) => w.id !== activeWidget.id,
-    );
-
-    // Check for X-axis snapping
-    for (const widget of allWidgets) {
-      const snapPoints = [
-        widget.pos_x, // Left edge
-        widget.pos_x + widget.width, // Right edge
-        widget.pos_x + widget.width / 2, // Center
-      ];
-
-      for (const snapPoint of snapPoints) {
-        if (isNearPosition(newX, snapPoint)) {
-          snappedX = snapPoint;
-          break;
-        }
-        if (isNearPosition(newX + activeWidget.width, snapPoint)) {
-          snappedX = snapPoint - activeWidget.width;
-          break;
-        }
-        if (isNearPosition(newX + activeWidget.width / 2, snapPoint)) {
-          snappedX = snapPoint - activeWidget.width / 2;
-          break;
-        }
-      }
-    }
-
-    // Check for Y-axis snapping
-    for (const widget of allWidgets) {
-      const snapPoints = [
-        widget.pos_y, // Top edge
-        widget.pos_y + widget.height, // Bottom edge
-        widget.pos_y + activeWidget.height / 2, // Center
-      ];
-
-      for (const snapPoint of snapPoints) {
-        if (isNearPosition(newY, snapPoint)) {
-          snappedY = snapPoint;
-          break;
-        }
-        if (isNearPosition(newY + activeWidget.height, snapPoint)) {
-          snappedY = snapPoint - activeWidget.height;
-          break;
-        }
-        if (isNearPosition(newY + activeWidget.height / 2, snapPoint)) {
-          snappedY = snapPoint - activeWidget.height / 2;
-          break;
-        }
-      }
-    }
-
-    return { x: snappedX, y: snappedY };
-  }
+  const { guides }: Props = $props();
 </script>
 
-{#if snapGuides.length > 0 && isDragging}
+{#if guides.length > 0}
   <div class="snap-guides">
-    {#each snapGuides as guide}
+    {#each guides as guide (guide.type + guide.position)}
       {#if guide.type === "horizontal"}
         <div
           class="guide guide-horizontal"
-          style="
-            top: {guide.position}px;
-            border-color: {guide.color};
-            box-shadow: 0 0 4px rgba({guide.colorRgb}, 0.25);
-          "
+          style=""
+          style:top="{guide.position}px"
+          style:border-color={guide.color}
+          style:box-shadow="0 0 4px rgba({guide.colorRgb}, 0.25)"
         ></div>
       {:else}
         <div
           class="guide guide-vertical"
-          style="
-            left: {guide.position}px;
-            border-color: {guide.color};
-            box-shadow: 0 0 4px rgba({guide.colorRgb}, 0.25);
-          "
+          style=""
+          style:left="{guide.position}px"
+          style:border-color={guide.color}
+          style:box-shadow="0 0 4px rgba({guide.colorRgb}, 0.25)"
         ></div>
       {/if}
     {/each}

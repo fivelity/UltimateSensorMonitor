@@ -1,5 +1,7 @@
 <script lang="ts">
   import {
+    alignWidgets,
+    distributeWidgets,
     editMode,
     selectedWidgets,
     uiUtils,
@@ -7,8 +9,22 @@
     widgets,
     widgetUtils,
   } from "$lib/stores";
+  import {
+    AddWidgetCommand,
+    BatchCommand,
+    historyStore,
+    RemoveWidgetCommand,
+  } from "$lib/stores/history";
   import type { ContextMenuState, Selection, WidgetConfig } from "$lib/types";
   import {
+    AlignCenterHorizontal,
+    AlignCenterVertical,
+    AlignEndHorizontal,
+    AlignEndVertical,
+    AlignHorizontalDistributeCenter,
+    AlignStartHorizontal,
+    AlignStartVertical,
+    AlignVerticalDistributeCenter,
     ArrowDown,
     ArrowUp,
     Copy,
@@ -109,9 +125,27 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          selectedWidgetsState.ids.forEach((id: string) => {
-            widgetUtils.removeWidget(id);
-          });
+          const removeCommands = selectedWidgetsState.ids
+            .map((id: string) => widgetsMap[id])
+            .filter((w: WidgetConfig | undefined): w is WidgetConfig =>
+              Boolean(w),
+            )
+            .map(
+              (w: WidgetConfig) =>
+                new RemoveWidgetCommand(
+                  w,
+                  widgetUtils.addWidget,
+                  widgetUtils.removeWidget,
+                ),
+            );
+          if (removeCommands.length > 0) {
+            historyStore.executeCommand(
+              new BatchCommand(
+                removeCommands,
+                `Delete ${removeCommands.length} widget${removeCommands.length === 1 ? "" : "s"}`,
+              ),
+            );
+          }
           uiUtils.clearSelection();
         }
         break;
@@ -121,6 +155,7 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
+          const addCommands: AddWidgetCommand[] = [];
           selectedWidgetsState.ids.forEach((id: string) => {
             const widget = widgetsMap[id];
             if (widget) {
@@ -132,9 +167,23 @@
                 pos_x: widget.pos_x + 20,
                 pos_y: widget.pos_y + 20,
               };
-              widgetUtils.addWidget(newWidget);
+              addCommands.push(
+                new AddWidgetCommand(
+                  newWidget,
+                  widgetUtils.addWidget,
+                  widgetUtils.removeWidget,
+                ),
+              );
             }
           });
+          if (addCommands.length > 0) {
+            historyStore.executeCommand(
+              new BatchCommand(
+                addCommands,
+                `Duplicate ${addCommands.length} widget${addCommands.length === 1 ? "" : "s"}`,
+              ),
+            );
+          }
         }
         break;
 
@@ -233,6 +282,31 @@
       case "clear-selection":
         uiUtils.clearSelection();
         break;
+
+      case "align-left":
+        alignWidgets("align-left");
+        break;
+      case "align-right":
+        alignWidgets("align-right");
+        break;
+      case "align-top":
+        alignWidgets("align-top");
+        break;
+      case "align-bottom":
+        alignWidgets("align-bottom");
+        break;
+      case "align-center-horizontal":
+        alignWidgets("align-center-horizontal");
+        break;
+      case "align-center-vertical":
+        alignWidgets("align-center-vertical");
+        break;
+      case "distribute-horizontal":
+        distributeWidgets("distribute-horizontal");
+        break;
+      case "distribute-vertical":
+        distributeWidgets("distribute-vertical");
+        break;
     }
 
     // Close menu after action
@@ -323,6 +397,52 @@
         });
 
         if (selectedCount > 1) {
+          items.push({ type: "divider" });
+          items.push({
+            label: "Align Left",
+            action: "align-left",
+            icon: AlignStartHorizontal,
+          });
+          items.push({
+            label: "Align Right",
+            action: "align-right",
+            icon: AlignEndHorizontal,
+          });
+          items.push({
+            label: "Align Top",
+            action: "align-top",
+            icon: AlignStartVertical,
+          });
+          items.push({
+            label: "Align Bottom",
+            action: "align-bottom",
+            icon: AlignEndVertical,
+          });
+          items.push({
+            label: "Align Center Horizontal",
+            action: "align-center-horizontal",
+            icon: AlignCenterHorizontal,
+          });
+          items.push({
+            label: "Align Center Vertical",
+            action: "align-center-vertical",
+            icon: AlignCenterVertical,
+          });
+
+          if (selectedCount >= 3) {
+            items.push({ type: "divider" });
+            items.push({
+              label: "Distribute Horizontal",
+              action: "distribute-horizontal",
+              icon: AlignHorizontalDistributeCenter,
+            });
+            items.push({
+              label: "Distribute Vertical",
+              action: "distribute-vertical",
+              icon: AlignVerticalDistributeCenter,
+            });
+          }
+
           items.push({ type: "divider" });
           items.push({
             label: "Group",

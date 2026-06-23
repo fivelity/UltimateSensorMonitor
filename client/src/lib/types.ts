@@ -52,6 +52,8 @@ export interface WidgetGroup {
   widgets: string[];
   relative_positions: Record<string, { x: number; y: number }>;
   created_at?: string;
+  tag_color?: string;
+  icon?: string;
 }
 
 export interface VisualSettings {

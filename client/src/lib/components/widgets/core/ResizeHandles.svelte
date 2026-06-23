@@ -1,27 +1,31 @@
 <script lang="ts">
-  const {
-    onresize,
-    onresizeStart,
-    onresizeEnd,
-  }: {
-    onresize?: (_data: {
-      width: number;
-      height: number;
-      x?: number;
-      y?: number;
-    }) => void;
-    onresizeStart?: () => void;
-    onresizeEnd?: () => void;
-  } = $props();
+  import { configService, type AppConfig } from "$lib/services/configService";
+  import { dashboardInteraction } from "$lib/stores";
+  import type { ResizeHandle } from "$lib/types";
 
-  let isResizing = $state(false);
-  let activeHandle = $state("");
-  let startPos = $state({ x: 0, y: 0 });
-  let startSize = $state({ width: 0, height: 0 });
-  let startPosition = $state({ x: 0, y: 0 });
+  interface Props {
+    widgetId: string;
+  }
 
-  // Handle definitions with cursor styles
-  const handles = [
+  const { widgetId }: Props = $props();
+
+  let config = $state<AppConfig | null>(null);
+
+  $effect(() => {
+    configService.loadConfig().then((loadedConfig) => {
+      config = loadedConfig;
+    });
+  });
+
+  const isResizing = $derived($dashboardInteraction.mode === "resizing");
+  const activeHandle = $derived($dashboardInteraction.activeHandle);
+
+  const handles: {
+    id: ResizeHandle;
+    position: string;
+    cursor: string;
+    class: string;
+  }[] = [
     {
       id: "nw",
       position: "top-0 left-0",
@@ -73,159 +77,59 @@
   ];
 
   $effect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      dashboardInteraction.updateResize(event, event.shiftKey);
+    };
+
+    const handleMouseUp = () => {
+      dashboardInteraction.endResize();
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
     return () => {
-      // Cleanup event listeners
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
   });
 
-  function startResize(event: MouseEvent, handleId: string) {
+  function handleResizeStart(event: MouseEvent, handleId: ResizeHandle) {
     event.preventDefault();
     event.stopPropagation();
 
-    isResizing = true;
-    activeHandle = handleId;
-    startPos = { x: event.clientX, y: event.clientY };
+    const constraints = {
+      minWidth: config?.widgets.minWidgetWidth ?? 60,
+      minHeight: config?.widgets.minWidgetHeight ?? 60,
+      maxWidth: config?.widgets.maxWidgetWidth ?? 800,
+      maxHeight: config?.widgets.maxWidgetHeight ?? 600,
+    };
 
-    // Get current widget dimensions and position from parent
-    const widget = (event.target as HTMLElement).closest(
-      ".widget-container",
-    ) as HTMLElement;
-    if (widget) {
-      const style = window.getComputedStyle(widget);
-
-      startSize = {
-        width: parseInt(style.width),
-        height: parseInt(style.height),
-      };
-
-      startPosition = {
-        x: parseInt(style.left),
-        y: parseInt(style.top),
-      };
-    }
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor = getCursorForHandle(handleId);
-
-    onresizeStart?.();
+    dashboardInteraction.startResize(event, widgetId, handleId, constraints);
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!isResizing) return;
-
-    const deltaX = event.clientX - startPos.x;
-    const deltaY = event.clientY - startPos.y;
-
-    let newWidth = startSize.width;
-    let newHeight = startSize.height;
-    let newX = startPosition.x;
-    let newY = startPosition.y;
-
-    // Calculate new dimensions based on active handle
-    switch (activeHandle) {
-      case "nw":
-        newWidth = startSize.width - deltaX;
-        newHeight = startSize.height - deltaY;
-        newX = startPosition.x + deltaX;
-        newY = startPosition.y + deltaY;
-        break;
-      case "n":
-        newHeight = startSize.height - deltaY;
-        newY = startPosition.y + deltaY;
-        break;
-      case "ne":
-        newWidth = startSize.width + deltaX;
-        newHeight = startSize.height - deltaY;
-        newY = startPosition.y + deltaY;
-        break;
-      case "e":
-        newWidth = startSize.width + deltaX;
-        break;
-      case "se":
-        newWidth = startSize.width + deltaX;
-        newHeight = startSize.height + deltaY;
-        break;
-      case "s":
-        newHeight = startSize.height + deltaY;
-        break;
-      case "sw":
-        newWidth = startSize.width - deltaX;
-        newHeight = startSize.height + deltaY;
-        newX = startPosition.x + deltaX;
-        break;
-      case "w":
-        newWidth = startSize.width - deltaX;
-        newX = startPosition.x + deltaX;
-        break;
-    }
-
-    // Apply minimum constraints
-    const minSize = 60;
-    if (newWidth < minSize) {
-      if (activeHandle.includes("w")) {
-        newX = startPosition.x + (startSize.width - minSize);
-      }
-      newWidth = minSize;
-    }
-    if (newHeight < minSize) {
-      if (activeHandle.includes("n")) {
-        newY = startPosition.y + (startSize.height - minSize);
-      }
-      newHeight = minSize;
-    }
-
-    // Dispatch resize event
-    const resizeData: {
-      width: number;
-      height: number;
-      x?: number;
-      y?: number;
-    } = { width: newWidth, height: newHeight };
-    if (activeHandle.includes("w") || activeHandle.includes("n")) {
-      resizeData.x = newX;
-      resizeData.y = newY;
-    }
-
-    onresize?.(resizeData);
-  }
-
-  function handleMouseUp() {
-    if (!isResizing) return;
-
-    isResizing = false;
-    activeHandle = "";
-    document.body.style.cursor = "";
-
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-
-    onresizeEnd?.();
-  }
-
-  function getCursorForHandle(handleId: string): string {
+  function _getCursorForHandle(handleId: string): string {
     const handle = handles.find((h) => h.id === handleId);
     return handle ? handle.cursor : "default";
   }
 </script>
 
 <div class="resize-handles absolute inset-0 pointer-events-none">
-  {#each handles as handle}
+  {#each handles as handle (handle.id)}
     <div
       class="resize-handle absolute {handle.position} {handle.class}"
       class:active={activeHandle === handle.id}
-      style="cursor: {handle.cursor}"
+      style:cursor={handle.cursor}
       data-resize-handle={handle.id}
-      onmousedown={(e) => startResize(e, handle.id)}
+      onmousedown={(e) => handleResizeStart(e, handle.id)}
       role="button"
       tabindex="-1"
       aria-label="Resize handle {handle.id}"
     ></div>
   {/each}
 
-  <!-- Resize indicator when actively resizing -->
   {#if isResizing}
     <div
       class="resize-indicator absolute -top-8 -right-8 bg-[var(--theme-primary)] text-[var(--theme-background)] text-xs px-2 py-1 rounded shadow-lg pointer-events-none"
@@ -308,7 +212,7 @@
     will-change: opacity, transform;
   }
 
-  .resize-handles {
-    contain: layout style;
+  .resize-indicator {
+    will-change: transform;
   }
 </style>

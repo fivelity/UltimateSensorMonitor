@@ -11,17 +11,15 @@
     availableSensors,
     contextMenu,
     editMode,
-    selectedWidgets,
     sensorUtils,
     uiUtils,
-    visualSettings,
     visualUtils,
     widgetArray,
   } from "$lib/stores";
   import { widgetUtils } from "$lib/stores/data/widgets";
   import type { GaugeSettings, GaugeType, WidgetConfig } from "$lib/types";
   import { logger } from "$lib/utils/logger";
-  import { BarChart2, RefreshCw } from "@lucide/svelte";
+  import { RefreshCw } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let showLeftSidebar = $state(false);
@@ -35,7 +33,6 @@
 
   onMount(() => {
     let cancelled = false;
-    let keydownHandler: ((_event: KeyboardEvent) => void) | null = null;
 
     // Safety timeout: ensure the loading screen never gets stuck indefinitely,
     // even if an API call hangs or an unexpected error occurs.
@@ -84,19 +81,12 @@
             hasInitialized = true;
           }
         }
-
-        // Set up keyboard shortcuts
-        keydownHandler = setupKeyboardShortcuts();
-        document.addEventListener("keydown", keydownHandler);
       }
     })();
 
     return () => {
       cancelled = true;
       clearTimeout(safetyTimeout);
-      if (keydownHandler) {
-        document.removeEventListener("keydown", keydownHandler);
-      }
     };
   });
 
@@ -283,43 +273,6 @@
     }
   }
 
-  function setupKeyboardShortcuts(): (_event: KeyboardEvent) => void {
-    return (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        uiUtils.clearSelection();
-        uiUtils.hideContextMenu();
-      }
-
-      if (
-        (event.key === "e" || event.key === "E") &&
-        (event.ctrlKey || event.metaKey)
-      ) {
-        event.preventDefault();
-        editMode.update((mode) => (mode === "edit" ? "view" : "edit"));
-      }
-
-      if (event.key === "Delete" && $editMode === "edit") {
-        const selection = $selectedWidgets;
-        if (selection.type === "widget" && selection.ids.length > 0) {
-          selection.ids.forEach((id) => widgetUtils.removeWidget(id));
-          uiUtils.clearSelection();
-        }
-      }
-
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key === "a" &&
-        $editMode === "edit"
-      ) {
-        event.preventDefault();
-        const allWidgetIds = $widgetArray.map((w) => w.id);
-        if (allWidgetIds.length > 0) {
-          selectedWidgets.set({ type: "widget", ids: allWidgetIds });
-        }
-      }
-    };
-  }
-
   function toggleLeftSidebar() {
     showLeftSidebar = !showLeftSidebar;
   }
@@ -411,51 +364,7 @@
 
       <!-- Dashboard Canvas -->
       <div class="flex-1 relative overflow-hidden">
-        <DashboardCanvas />
-
-        <!-- Empty state when no widgets are present -->
-        {#if $widgetArray.length === 0 && hasInitialized}
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="text-center text-[var(--theme-text-muted)]">
-              <BarChart2 size={64} class="mx-auto mb-4 opacity-50" />
-              <h2 class="text-xl font-semibold mb-2 text-[var(--theme-text)]">
-                No Widgets Yet
-              </h2>
-              <p class="mb-4">
-                {#if config?.data.useDemoData}
-                  Demo mode is enabled but no demo widgets were loaded.
-                {:else if !$availableSensors.length}
-                  No sensor data available. Check your backend connection.
-                {:else}
-                  Drag sensors from the left sidebar to create widgets.
-                {/if}
-              </p>
-              <div class="flex gap-2 justify-center">
-                {#if !showLeftSidebar}
-                  <button
-                    class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded hover:opacity-80"
-                    onclick={toggleLeftSidebar}
-                  >
-                    Open Sensor Panel
-                  </button>
-                {/if}
-                <button
-                  class="px-4 py-2 border border-[var(--theme-border)] rounded hover:bg-[var(--theme-surface)] text-[var(--theme-text)]"
-                  onclick={() => editMode.set("edit")}
-                >
-                  Enter Edit Mode
-                </button>
-              </div>
-            </div>
-          </div>
-        {/if}
-
-        <!-- Grid overlay when in edit mode and grid is enabled -->
-        {#if $editMode === "edit" && $visualSettings.show_grid}
-          <div
-            class="absolute inset-0 pointer-events-none micro-grid opacity-30"
-          ></div>
-        {/if}
+        <DashboardCanvas onopenLeftSidebar={toggleLeftSidebar} />
       </div>
 
       <!-- Right Sidebar -->

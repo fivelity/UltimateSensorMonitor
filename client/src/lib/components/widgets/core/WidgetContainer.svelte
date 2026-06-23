@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { configService, type AppConfig } from "$lib/services/configService";
-  import { editMode, selectedWidgets } from "$lib/stores";
+  import { dashboardInteraction, editMode, selectedWidgets } from "$lib/stores";
   import type { WidgetConfig } from "$lib/types";
 
   import ResizeHandles from "./ResizeHandles.svelte";
@@ -25,13 +24,6 @@
     onwidgetDelete?: (_data: { id: string }) => void;
   } = $props();
 
-  let containerElement: HTMLDivElement | undefined = $state();
-  let isDragging = $state(false);
-  let dragStart = $state({ x: 0, y: 0 });
-  let initialPos = $state({ x: 0, y: 0 });
-  let config = $state<AppConfig | null>(null);
-
-  // Reactive state
   const isSelected = $derived(
     $selectedWidgets.type === "widget" &&
       $selectedWidgets.ids.includes(widget.id),
@@ -41,36 +33,32 @@
     $editMode === "edit" && isSelected && !isLocked,
   );
   const canEdit = $derived($editMode === "edit");
-
-  // Performance optimization
-  let updateThrottle = $state(0);
-  const throttleDelay = $derived(
-    config?.performance.widgetUpdateThrottle ?? 16,
+  const isDragging = $derived(
+    $dashboardInteraction.mode === "dragging" &&
+      $dashboardInteraction.activeWidgetIds.includes(widget.id),
   );
-
-  $effect(() => {
-    // Load configuration
-    configService.loadConfig().then((loadedConfig) => {
-      config = loadedConfig;
-    });
-
-    return () => {
-      // Cleanup
-      if (updateThrottle) {
-        clearTimeout(updateThrottle);
-      }
-    };
-  });
+  const isResizing = $derived(
+    $dashboardInteraction.mode === "resizing" &&
+      $dashboardInteraction.activeWidgetIds.includes(widget.id),
+  );
 
   $effect(() => {
     if (!isDragging) return;
 
-    document.addEventListener("mousemove", handleDragMove);
-    document.addEventListener("mouseup", handleDragEnd);
+    const handleMouseMove = (event: MouseEvent) => {
+      dashboardInteraction.updateDrag(event);
+    };
+
+    const handleMouseUp = () => {
+      dashboardInteraction.endDrag();
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener("mousemove", handleDragMove);
-      document.removeEventListener("mouseup", handleDragEnd);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   });
 
@@ -80,22 +68,19 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Select widget
-    const multiSelect = event.shiftKey || event.ctrlKey;
+    const multiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
     onwidgetSelected?.({ id: widget.id, multiSelect });
 
-    // Start drag if not clicking on resize handle
     const target = event.target as HTMLElement;
     if (!target.closest("[data-resize-handle]")) {
-      startDrag(event);
+      dashboardInteraction.startDrag(event, widget.id);
     }
   }
 
   function handleContainerClick(event: MouseEvent) {
     if (!canEdit) return;
-
     event.stopPropagation();
-    const multiSelect = event.shiftKey || event.ctrlKey;
+    const multiSelect = event.shiftKey || event.ctrlKey || event.metaKey;
     onwidgetSelected?.({ id: widget.id, multiSelect });
   }
 
@@ -112,87 +97,32 @@
     });
   }
 
-  function startDrag(event: MouseEvent) {
-    isDragging = true;
-    dragStart = { x: event.clientX, y: event.clientY };
-    initialPos = { x: widget.pos_x, y: widget.pos_y };
-  }
-
-  function handleDragMove(event: MouseEvent) {
-    // Throttle updates for performance
-    if (updateThrottle) return;
-
-    updateThrottle = setTimeout(() => {
-      const deltaX = event.clientX - dragStart.x;
-      const deltaY = event.clientY - dragStart.y;
-
-      let newX = initialPos.x + deltaX;
-      let newY = initialPos.y + deltaY;
-
-      // Apply constraints
-      newX = Math.max(0, newX);
-      newY = Math.max(0, newY);
-
-      // Emit update
-      onwidgetUpdated?.({
-        id: widget.id,
-        updates: { pos_x: newX, pos_y: newY },
-      });
-
-      updateThrottle = 0;
-    }, throttleDelay);
-  }
-
-  function handleDragEnd() {
-    isDragging = false;
-  }
-
-  function handleResize(data: {
-    width: number;
-    height: number;
-    x?: number;
-    y?: number;
-  }) {
-    const { width, height } = data;
-
-    // Apply size constraints
-    const minWidth = config?.widgets.minWidgetWidth ?? 50;
-    const minHeight = config?.widgets.minWidgetHeight ?? 30;
-    const maxWidth = config?.widgets.maxWidgetWidth ?? 800;
-    const maxHeight = config?.widgets.maxWidgetHeight ?? 600;
-
-    const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, width));
-    const constrainedHeight = Math.max(minHeight, Math.min(maxHeight, height));
-
-    onwidgetUpdated?.({
-      id: widget.id,
-      updates: { width: constrainedWidth, height: constrainedHeight },
-    });
-  }
-
   function handleLockToggle() {
     onwidgetUpdated?.({
       id: widget.id,
       updates: { is_locked: !widget.is_locked },
     });
   }
+
+  function handleDelete() {
+    onwidgetDelete?.({ id: widget.id });
+  }
 </script>
 
 <div
-  bind:this={containerElement}
   class="widget-container absolute cursor-pointer"
   class:widget-selected={isSelected}
   class:widget-locked={isLocked}
   class:widget-dragging={isDragging}
   class:widget-edit-mode={canEdit}
-  style="
-    left: {widget.pos_x}px;
-    top: {widget.pos_y}px;
-    width: {widget.width}px;
-    height: {widget.height}px;
-    z-index: {widget.z_index};
-    transform: rotate({widget.rotation}deg);
-  "
+  class:widget-resizing={isResizing}
+  style=""
+  style:left="{widget.pos_x}px"
+  style:top="{widget.pos_y}px"
+  style:width="{widget.width}px"
+  style:height="{widget.height}px"
+  style:z-index={widget.z_index}
+  style:transform="rotate({widget.rotation}deg)"
   onmousedown={handleContainerMouseDown}
   onclick={handleContainerClick}
   oncontextmenu={handleContextMenu}
@@ -201,12 +131,13 @@
       event.preventDefault();
       onwidgetSelected?.({
         id: widget.id,
-        multiSelect: event.shiftKey || event.ctrlKey,
+        multiSelect: event.shiftKey || event.ctrlKey || event.metaKey,
       });
     }
   }}
   role="button"
   tabindex="0"
+  aria-label="Widget {widget.custom_label || widget.sensor_id}"
 >
   <!-- Widget Border and Selection Indicator -->
   <WidgetBorder {isSelected} {isLocked} {canEdit} />
@@ -219,13 +150,13 @@
     <WidgetControls
       {widget}
       onlockToggle={handleLockToggle}
-      ondelete={() => onwidgetDelete?.({ id: widget.id })}
+      ondelete={handleDelete}
     />
   {/if}
 
   <!-- Resize Handles (Edit Mode Only) -->
   {#if canEdit && !isLocked}
-    <ResizeHandles onresize={handleResize} />
+    <ResizeHandles widgetId={widget.id} />
   {/if}
 </div>
 
@@ -251,6 +182,11 @@
     user-select: none;
     pointer-events: none;
     z-index: 9999;
+  }
+
+  .widget-resizing {
+    user-select: none;
+    pointer-events: none;
   }
 
   .widget-edit-mode {

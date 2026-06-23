@@ -15,11 +15,24 @@ export { visualSettings, visualUtils } from "./core/visual.js";
 
 // Widget Data Stores
 export {
-    selectedWidgetConfigs, widgetArray, widgetGroups, widgets, widgetUtils
+    selectedWidgetConfigs, widgetArray, widgetCount, widgetGroups, widgetUtils, widgets
 } from "./data/widgets.js";
 
 // Dashboard Layout
 export { dashboardLayout } from "./dashboardLayout.js";
+
+// Dashboard Interaction Stores
+export { alignWidgets, distributeWidgets } from "./interactions/align.js";
+export {
+    activeSnapGuides,
+    dashboardInteraction,
+    isInteracting
+} from "./interactions/dashboard.js";
+export { handleKeyboardShortcut, setupKeyboardShortcuts } from "./interactions/keyboard.js";
+export { calculateSnap } from "./interactions/snap.js";
+
+// Inspector UI state
+export { inspectorStore, type RightSidebarTab } from "./inspector.js";
 
 // Existing stores for backward compatibility
 export { availableSensors } from "./availableSensors.js";

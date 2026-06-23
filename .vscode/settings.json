@@ -145,7 +145,7 @@
   
   // Workspace Settings
   "workbench.colorTheme": "Default Dark+",
-  "workbench.iconTheme": "material-icon-theme",
+  "workbench.iconTheme": "vscode-great-icons",
   "workbench.editor.enablePreview": false,
   
   // Language Specific Settings

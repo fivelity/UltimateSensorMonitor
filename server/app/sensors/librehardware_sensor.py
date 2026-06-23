@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from abc import abstractmethod
 from datetime import datetime
 
 from .base import BaseSensor
@@ -19,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from HardwareMonitor.Util import OpenComputer
+
     HARDWARE_MONITOR_AVAILABLE = True
     logger.info("HardwareMonitor package loaded successfully")
 except ImportError as e:
@@ -56,7 +56,9 @@ class LibreHardwareSensor(BaseSensor):
                 controller=True,
                 battery=True,
             )
-            logger.info("HardwareMonitor initialized successfully with all components enabled")
+            logger.info(
+                "HardwareMonitor initialized successfully with all components enabled"
+            )
             return True
         except Exception as e:
             logger.error(f"Failed to initialize HardwareMonitor: {e}")
@@ -78,11 +80,15 @@ class LibreHardwareSensor(BaseSensor):
 
         return bool(self.is_active)
 
-    def _process_hardware_sensors(self, hardware, sensors: dict[str, SensorData], parent_path: str) -> None:
+    def _process_hardware_sensors(
+        self, hardware, sensors: dict[str, SensorData], parent_path: str
+    ) -> None:
         """Process sensors from a hardware object."""
         try:
             hardware_name = str(hardware.Name)
-            current_path = f"{parent_path}/{hardware_name}" if parent_path else hardware_name
+            current_path = (
+                f"{parent_path}/{hardware_name}" if parent_path else hardware_name
+            )
 
             for sensor in hardware.Sensors:
                 try:
@@ -131,7 +137,9 @@ class LibreHardwareSensor(BaseSensor):
             for hardware in self.computer.Hardware:
                 self._process_hardware_sensors(hardware, sensors, "")
                 for subhardware in hardware.SubHardware:
-                    self._process_hardware_sensors(subhardware, sensors, str(hardware.Name))
+                    self._process_hardware_sensors(
+                        subhardware, sensors, str(hardware.Name)
+                    )
         except Exception as e:
             logger.error(f"Error collecting sensor data from {self.source_name}: {e}")
 
@@ -155,7 +163,24 @@ class LibreHardwareSensor(BaseSensor):
             logger.error(f"Error in async sensor data collection: {e}")
             return {}
 
+    async def initialize(self) -> bool:
+        """Pre-initialize the hardware monitor during startup.
+
+        This acquires the connection lock and runs OpenComputer in a thread.
+        API requests that arrive during initialization will get a quick
+        "not available" response from is_available() instead of blocking.
+        """
+        async with self._connection_lock:
+            return await asyncio.to_thread(self._test_connection)
+
     async def is_available(self) -> bool:
+        # If already tested, return the cached result immediately.
+        if self._connection_tested:
+            return bool(self.is_active)
+        # If initialization is in progress (lock held), don't block — return
+        # False so API callers get a quick "not available" response.
+        if self._connection_lock.locked():
+            return False
         async with self._connection_lock:
             return await asyncio.to_thread(self._test_connection)
 
@@ -170,7 +195,9 @@ class LibreHardwareSensor(BaseSensor):
             return {}
         return await self._collect_sensor_data()
 
-    def _build_hardware_node(self, hardware, include_sub_hardware: bool = True) -> ApiHardwareNode:
+    def _build_hardware_node(
+        self, hardware, include_sub_hardware: bool = True
+    ) -> ApiHardwareNode:
         """Build an ApiHardwareNode from a hardware object."""
         node = ApiHardwareNode(
             id=generate_sensor_id(hardware, hardware),
@@ -192,8 +219,12 @@ class LibreHardwareSensor(BaseSensor):
                             unit=unit,
                             category=category,
                             source=self.source_name,
-                            min_value=float(sensor.Min) if sensor.Min is not None else None,
-                            max_value=float(sensor.Max) if sensor.Max is not None else None,
+                            min_value=(
+                                float(sensor.Min) if sensor.Min is not None else None
+                            ),
+                            max_value=(
+                                float(sensor.Max) if sensor.Max is not None else None
+                            ),
                         )
                     )
                 except Exception:
@@ -201,7 +232,9 @@ class LibreHardwareSensor(BaseSensor):
 
         if include_sub_hardware and hasattr(hardware, "SubHardware"):
             for subhardware in hardware.SubHardware:
-                node.sub_hardware.append(self._build_hardware_node(subhardware, include_sub_hardware=False))
+                node.sub_hardware.append(
+                    self._build_hardware_node(subhardware, include_sub_hardware=False)
+                )
 
         return node
 
@@ -214,7 +247,9 @@ class LibreHardwareSensor(BaseSensor):
         try:
             self.computer.Update()
             for hardware in self.computer.Hardware:
-                tree.append(self._build_hardware_node(hardware, include_sub_hardware=True))
+                tree.append(
+                    self._build_hardware_node(hardware, include_sub_hardware=True)
+                )
         except Exception as e:
             logger.error(f"Error getting hardware tree: {e}")
 
@@ -236,7 +271,3 @@ class LibreHardwareSensor(BaseSensor):
                 logger.info("HardwareMonitor closed successfully")
         except Exception as e:
             logger.error(f"Error closing HardwareMonitor: {e}")
-
-    def __del__(self) -> None:
-        """Destructor to ensure cleanup."""
-        self.close()

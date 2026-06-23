@@ -66,6 +66,20 @@ function Start-BackendServer {
     $venvPython = "python"
   }
 
+  # Kill any existing process on the backend port to avoid zombie processes
+  # from previous runs (especially with --reload).
+  $existingConns = Get-NetTCPConnection -LocalPort $BackendPort -State Listen -ErrorAction SilentlyContinue
+  if ($existingConns) {
+    foreach ($conn in $existingConns) {
+      $procId = $conn.OwningProcess
+      if ($procId -and $procId -ne $PID) {
+        Write-Host "  Killing existing process on port $BackendPort (PID: $procId)..." -ForegroundColor Yellow
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+      }
+    }
+  }
+
   # Hardware sensors (LibreHardwareMonitor) require admin privileges.
   # Launch the backend in an elevated window so the frontend can keep running
   # in this (non-elevated) terminal.
@@ -81,7 +95,26 @@ function Start-BackendServer {
   }
 
   Write-Host "  Waiting for backend to initialize..." -ForegroundColor Yellow
-  Start-Sleep -Seconds 5
+  $maxWait = 30
+  $waited = 0
+  $backendReady = $false
+  while ($waited -lt $maxWait) {
+    try {
+      $response = Invoke-WebRequest -Uri "http://localhost:$BackendPort/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+      if ($response.StatusCode -eq 200) {
+        $backendReady = $true
+        Write-Host "  Backend is ready (after ${waited}s)!" -ForegroundColor Green
+        break
+      }
+    }
+    catch {
+      Start-Sleep -Seconds 1
+      $waited++
+    }
+  }
+  if (-not $backendReady) {
+    Write-Host "  Backend not ready after ${maxWait}s, starting frontend anyway..." -ForegroundColor Yellow
+  }
 }
 
 function Start-FrontendClient {

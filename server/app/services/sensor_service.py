@@ -113,7 +113,7 @@ class SensorService:
     async def get_hardware_tree(self) -> HardwareTreeResponse:
         """Return the hardware tree from the updated LibreHardware source."""
         for source_id, source_name, sensor in self._sources:
-            if source_id != "librehardware_updated":
+            if source_id != "librehardware":
                 continue
 
             try:
@@ -178,8 +178,14 @@ class SensorService:
                 debug_info.total_sensors += sensor_count
 
                 for reading in data.values():
-                    category = reading.category if isinstance(reading, SensorData) else reading.get("category", "unknown")
-                    debug_info.categories[category] = debug_info.categories.get(category, 0) + 1
+                    category = (
+                        reading.category
+                        if isinstance(reading, SensorData)
+                        else reading.get("category", "unknown")
+                    )
+                    debug_info.categories[category] = (
+                        debug_info.categories.get(category, 0) + 1
+                    )
             except Exception as e:
                 debug_info.sensor_sources[source_id] = DebugSensorSource(
                     name=source_name,

@@ -118,7 +118,7 @@
       sensorUtils.updateSensorSources(sourcesResponse.data.sources);
 
       const lhmUpdatedSource =
-        sourcesResponse.data.sources["librehardware_updated"];
+        sourcesResponse.data.sources["librehardware"];
       if (lhmUpdatedSource && lhmUpdatedSource.active) {
         const treeResponse = await apiService.getHardwareTree();
         logger.debug("[Layout] Hardware Tree Response:", treeResponse);

@@ -40,10 +40,10 @@
     // even if an API call hangs or an unexpected error occurs.
     const safetyTimeout = setTimeout(() => {
       if (!cancelled && !hasInitialized && !initializationError) {
-        logger.warn("[App] Initialization timed out after 15s, showing app");
+        logger.warn("[App] Initialization timed out after 30s, showing app");
         hasInitialized = true;
       }
-    }, 15000);
+    }, 30000);
 
     (async () => {
       try {
@@ -114,11 +114,28 @@
     // Attempt to load real sensor data
     logger.debug("[App] Attempting to load real sensor data...");
     try {
-      const sensorsResult = await apiService.getSensors();
+      let sensorsResult: Awaited<ReturnType<typeof apiService.getSensors>>;
+      let retries = 3;
 
-      if (sensorsResult.success && sensorsResult.data?.sources) {
+      while (retries > 0) {
+        sensorsResult = await apiService.getSensors();
+
+        if (sensorsResult.success && sensorsResult.data?.sources) {
+          const hasActive = Object.values(sensorsResult.data.sources).some(
+            (s) => s.active,
+          );
+          if (hasActive || retries === 1) break;
+          logger.debug(
+            `[App] No active sensors yet, retrying... (${retries - 1} attempts left)`,
+          );
+        }
+        retries--;
+        if (retries > 0) await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      if (sensorsResult!.success && sensorsResult!.data?.sources) {
         logger.debug("[App] Real sensor data loaded successfully");
-        sensorUtils.updateSensorSources(sensorsResult.data.sources);
+        sensorUtils.updateSensorSources(sensorsResult!.data.sources);
 
         // Wait for reactive stores to update, then create widgets if configured
         if (config.data.autoCreateWidgets) {
@@ -127,7 +144,7 @@
           }, 100);
         }
       } else {
-        logger.warn("[App] Failed to load sensor data:", sensorsResult.error);
+        logger.warn("[App] Failed to load sensor data:", sensorsResult!.error);
         showEmptyState();
       }
     } catch (error) {

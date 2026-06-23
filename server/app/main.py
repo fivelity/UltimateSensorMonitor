@@ -13,7 +13,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -126,16 +133,37 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup and shutdown tasks."""
     logger.info("Starting Ultimate Sensor Monitor Reimagined...")
 
+    # Start sensor initialization in the background so the server can accept
+    # connections immediately. OpenComputer (LibreHardwareMonitor) can take
+    # 15+ seconds; API requests during init will return "not available" quickly
+    # instead of blocking on the connection lock.
+    init_tasks: list[asyncio.Task] = []
+    for source_id, source_name, sensor in sensor_sources:
+        if hasattr(sensor, "initialize"):
+            logger.info(
+                f"Scheduling initialization for sensor source: {source_name}..."
+            )
+            init_tasks.append(
+                asyncio.create_task(
+                    sensor.initialize(),
+                    name=f"init-{source_id}",
+                )
+            )
+
     broadcast_task = asyncio.create_task(_broadcast_sensor_data(sensor_service))
     cleanup_task = asyncio.create_task(_websocket_cleanup())
 
-    logger.info("Application startup complete!")
+    logger.info(
+        "Application startup complete! Sensor initialization running in background."
+    )
 
     yield
 
     logger.info("Shutting down Ultimate Sensor Monitor Reimagined...")
     broadcast_task.cancel()
     cleanup_task.cancel()
+    for task in init_tasks:
+        task.cancel()
 
     try:
         await broadcast_task
@@ -145,6 +173,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await cleanup_task
     except asyncio.CancelledError:
         pass
+    for task in init_tasks:
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
 
     for sensor in [librehw_sensor, hwinfo_sensor]:
         if sensor is None:
@@ -174,7 +207,9 @@ app.add_middleware(
 )
 
 
-def _sanitize_validation_errors(errors: list[dict[str, object]]) -> list[dict[str, object]]:
+def _sanitize_validation_errors(
+    errors: list[dict[str, object]],
+) -> list[dict[str, object]]:
     """Convert non-JSON-serializable values in error details to strings."""
     sanitized: list[dict[str, object]] = []
     for error in errors:
@@ -183,7 +218,14 @@ def _sanitize_validation_errors(errors: list[dict[str, object]]) -> list[dict[st
             if isinstance(value, dict):
                 clean[key] = _sanitize_validation_errors([value])[0] if value else {}
             elif isinstance(value, list):
-                clean[key] = [str(item) if not isinstance(item, (str, int, float, bool, type(None))) else item for item in value]
+                clean[key] = [
+                    (
+                        str(item)
+                        if not isinstance(item, (str, int, float, bool, type(None)))
+                        else item
+                    )
+                    for item in value
+                ]
             elif isinstance(value, BaseException):
                 clean[key] = str(value)
             else:
@@ -192,7 +234,9 @@ def _sanitize_validation_errors(errors: list[dict[str, object]]) -> list[dict[st
     return sanitized
 
 
-async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def handle_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
     """Convert FastAPI/Pydantic validation errors to structured JSON responses."""
     logger.warning(f"Validation error: {exc} ({request.url.path})")
     return JSONResponse(
@@ -222,14 +266,10 @@ async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
     )
 
 
-
-
 @app.get("/", response_model=MessageResponse)
 async def root() -> MessageResponse:
     """Root endpoint."""
-    return MessageResponse(
-        message="Ultimate Sensor Monitor Reimagined API v1.0.0"
-    )
+    return MessageResponse(message="Ultimate Sensor Monitor Reimagined API v1.0.0")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -293,9 +333,12 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             except asyncio.TimeoutError:
                 pass
             except WebSocketDisconnect:
+                logger.info("WebSocket client disconnected")
                 break
     except WebSocketDisconnect:
-        pass
+        logger.info("WebSocket client disconnected (outer)")
+    except Exception as e:
+        logger.warning(f"WebSocket endpoint error: {e}")
     finally:
         websocket_manager.disconnect(websocket)
 

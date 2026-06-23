@@ -14,7 +14,7 @@ import type {
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
   private isIntentionalClose = false;
   private url: string | null = null;
@@ -43,6 +43,7 @@ class WebSocketService {
       this.url = `${protocol}//${window.location.host}/ws`;
     }
 
+    this.isIntentionalClose = false;
     connectionStatus.set("connecting");
 
     try {
@@ -74,7 +75,15 @@ class WebSocketService {
     };
 
     this.ws.onclose = (event) => {
-      logger.debug("WebSocket closed:", event.code, event.reason);
+      if (this.isIntentionalClose) {
+        logger.debug("WebSocket closed (intentional):", event.code, event.reason);
+      } else {
+        logger.warn(
+          "WebSocket closed unexpectedly:",
+          event.code,
+          event.reason,
+        );
+      }
       connectionStatus.set("disconnected");
 
       if (!this.isIntentionalClose) {

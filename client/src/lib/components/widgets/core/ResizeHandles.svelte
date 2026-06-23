@@ -4,7 +4,7 @@
     onresizeStart,
     onresizeEnd,
   }: {
-    onresize?: (data: { width: number; height: number; x?: number; y?: number }) => void;
+    onresize?: (_data: { width: number; height: number; x?: number; y?: number }) => void;
     onresizeStart?: () => void;
     onresizeEnd?: () => void;
   } = $props();

@@ -1,16 +1,28 @@
 <script lang="ts">
   import {
+    dashboardLayout,
     editMode,
     selectedWidgets,
-    widgets,
-    widgetGroups,
     visualSettings,
-    dashboardLayout,
-    storeUtils
-  } from '$lib/stores';
-  import { Download, Upload, Save, FolderOpen, Eye, Edit3, Grid3X3, Settings, RotateCcw, RotateCw } from '@lucide/svelte';
-  import type { DashboardPreset } from '$lib/types';
-  import { historyStore } from '$lib/stores/history';
+    widgetGroups,
+    widgets,
+  } from "$lib/stores";
+  import { widgetUtils } from "$lib/stores/data/widgets";
+  import { historyStore } from "$lib/stores/history";
+  import type { DashboardPreset } from "$lib/types";
+  import { logger } from "$lib/utils/logger";
+  import {
+    Download,
+    Edit3,
+    Eye,
+    FolderOpen,
+    Grid3X3,
+    RotateCcw,
+    RotateCw,
+    Save,
+    Settings,
+    Upload,
+  } from "@lucide/svelte";
 
   const {
     showLeftSidebar,
@@ -28,10 +40,12 @@
 
   // History state
   const canUndo = $derived($historyStore.currentIndex >= 0);
-  const canRedo = $derived($historyStore.currentIndex < $historyStore.commands.length - 1);
+  const canRedo = $derived(
+    $historyStore.currentIndex < $historyStore.commands.length - 1,
+  );
 
   function toggleEditMode() {
-    editMode.update(mode => mode === 'edit' ? 'view' : 'edit');
+    editMode.update((mode) => (mode === "edit" ? "view" : "edit"));
   }
 
   function toggleLeftSidebar() {
@@ -46,21 +60,21 @@
   function exportPreset() {
     const preset: DashboardPreset = {
       id: crypto.randomUUID(),
-      name: `Dashboard_${new Date().toISOString().split('T')[0]}`,
-      description: 'Exported dashboard preset',
+      name: `Dashboard_${new Date().toISOString().split("T")[0]}`,
+      description: "Exported dashboard preset",
       widgets: Object.values($widgets),
       widget_groups: Object.values($widgetGroups),
       layout: $dashboardLayout,
       visual_settings: $visualSettings,
       created_at: new Date().toISOString(),
-      version: '1.0'
+      version: "1.0",
     };
 
     const dataStr = JSON.stringify(preset, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
 
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = `${preset.name}.json`;
     document.body.appendChild(link);
@@ -80,11 +94,13 @@
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const preset = JSON.parse(e.target?.result as string) as DashboardPreset;
+        const preset = JSON.parse(
+          e.target?.result as string,
+        ) as DashboardPreset;
         importPreset(preset);
       } catch (error) {
-        console.error('Failed to import preset:', error);
-        alert('Failed to import preset. Please check the file format.');
+        logger.error("Failed to import preset:", error);
+        alert("Failed to import preset. Please check the file format.");
       }
     };
     reader.readAsText(file);
@@ -92,17 +108,17 @@
 
   function importPreset(preset: DashboardPreset) {
     // Clear current widgets and groups
-    storeUtils.clearAllWidgets();
-    storeUtils.clearAllGroups();
+    widgetUtils.clearAllWidgets();
+    widgetUtils.clearAllGroups();
 
     // Import widgets
-    preset.widgets.forEach(widget => {
-      storeUtils.addWidget(widget);
+    preset.widgets.forEach((widget) => {
+      widgetUtils.addWidget(widget);
     });
 
     // Import groups
-    preset.widget_groups.forEach(group => {
-      storeUtils.addGroup(group);
+    preset.widget_groups.forEach((group) => {
+      widgetUtils.addGroup(group);
     });
 
     // Update visual settings
@@ -111,49 +127,53 @@
     // Update layout
     dashboardLayout.set(preset.layout);
 
-    console.log('Successfully imported preset:', preset.name);
+    logger.debug("Successfully imported preset:", preset.name);
   }
 
   function savePresetToLocal() {
     const preset: DashboardPreset = {
       id: crypto.randomUUID(),
       name: `Local_${Date.now()}`,
-      description: 'Local saved preset',
+      description: "Local saved preset",
       widgets: Object.values($widgets),
       widget_groups: Object.values($widgetGroups),
       layout: $dashboardLayout,
       visual_settings: $visualSettings,
       created_at: new Date().toISOString(),
-      version: '1.0'
+      version: "1.0",
     };
 
-    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]') as DashboardPreset[];
+    const savedPresets = JSON.parse(
+      localStorage.getItem("ultimon_presets") || "[]",
+    ) as DashboardPreset[];
     savedPresets.push(preset);
-    localStorage.setItem('ultimon_presets', JSON.stringify(savedPresets));
+    localStorage.setItem("ultimon_presets", JSON.stringify(savedPresets));
 
-    console.log('Preset saved locally');
+    logger.debug("Preset saved locally");
   }
 
   function loadPresetFromLocal() {
-    const savedPresets = JSON.parse(localStorage.getItem('ultimon_presets') || '[]') as DashboardPreset[];
+    const savedPresets = JSON.parse(
+      localStorage.getItem("ultimon_presets") || "[]",
+    ) as DashboardPreset[];
     if (savedPresets.length > 0) {
       // For now, load the most recent preset
       const latestPreset = savedPresets[savedPresets.length - 1];
       importPreset(latestPreset);
-      console.log('Loaded latest local preset');
+      logger.debug("Loaded latest local preset");
     } else {
-      alert('No local presets found');
+      alert("No local presets found");
     }
   }
 </script>
 
-<div class="flex items-center justify-between px-4 py-2 bg-[var(--theme-surface)] border-b border-[var(--theme-border)]">
+<div
+  class="flex items-center justify-between px-4 py-2 bg-[var(--theme-surface)] border-b border-[var(--theme-border)]"
+>
   <!-- Left section -->
   <div class="flex items-center space-x-2">
     <!-- Logo/Title -->
-    <div class="text-lg font-bold text-[var(--theme-text)]">
-      Ultimon
-    </div>
+    <div class="text-lg font-bold text-[var(--theme-text)]">Ultimon</div>
 
     <div class="h-6 border-l border-[var(--theme-border)]"></div>
 
@@ -162,16 +182,18 @@
       <button
         onclick={toggleEditMode}
         class="flex items-center gap-2 px-3 py-2 rounded-md transition-all duration-200"
-        class:bg-blue-500={$editMode === 'edit'}
-        class:text-white={$editMode === 'edit'}
-        class:shadow-md={$editMode === 'edit'}
-        class:bg-gray-100={$editMode === 'view'}
-        class:text-gray-700={$editMode === 'view'}
-        class:hover:bg-blue-600={$editMode === 'edit'}
-        class:hover:bg-gray-200={$editMode === 'view'}
-        title={$editMode === 'edit' ? 'Switch to View Mode' : 'Switch to Edit Mode'}
+        class:bg-blue-500={$editMode === "edit"}
+        class:text-white={$editMode === "edit"}
+        class:shadow-md={$editMode === "edit"}
+        class:bg-gray-100={$editMode === "view"}
+        class:text-gray-700={$editMode === "view"}
+        class:hover:bg-blue-600={$editMode === "edit"}
+        class:hover:bg-gray-200={$editMode === "view"}
+        title={$editMode === "edit"
+          ? "Switch to View Mode"
+          : "Switch to Edit Mode"}
       >
-        {#if $editMode === 'edit'}
+        {#if $editMode === "edit"}
           <Edit3 size={16} />
           <span class="text-sm font-medium">Editing</span>
           <span class="text-xs opacity-75">(Click to View)</span>
@@ -219,7 +241,7 @@
     </div>
 
     <!-- Undo/Redo Controls -->
-    {#if $editMode === 'edit'}
+    {#if $editMode === "edit"}
       <div class="h-6 border-l border-[var(--theme-border)]"></div>
 
       <div class="flex items-center space-x-1">
@@ -246,9 +268,11 @@
 
   <!-- Center section -->
   <div class="flex items-center space-x-4">
-    {#if $editMode === 'edit' && $selectedWidgets.ids.length > 0}
+    {#if $editMode === "edit" && $selectedWidgets.ids.length > 0}
       <div class="text-sm text-[var(--theme-text-muted)]">
-        {$selectedWidgets.ids.length} widget{$selectedWidgets.ids.length === 1 ? '' : 's'} selected
+        {$selectedWidgets.ids.length} widget{$selectedWidgets.ids.length === 1
+          ? ""
+          : "s"} selected
       </div>
     {/if}
   </div>
@@ -256,9 +280,10 @@
   <!-- Right section -->
   <div class="flex items-center space-x-2">
     <!-- Grid toggle -->
-    {#if $editMode === 'edit'}
+    {#if $editMode === "edit"}
       <button
-        onclick={() => visualSettings.update(vs => ({ ...vs, show_grid: !vs.show_grid }))}
+        onclick={() =>
+          visualSettings.update((vs) => ({ ...vs, show_grid: !vs.show_grid }))}
         class="p-2 rounded-md hover:bg-[var(--theme-background)] text-[var(--theme-text)] transition-colors"
         class:bg-blue-500={$visualSettings.show_grid}
         class:text-white={$visualSettings.show_grid}

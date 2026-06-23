@@ -12,7 +12,6 @@
   // Gauge settings with defaults
   const startAngle = $derived(widget.gauge_settings?.start_angle ?? -90);
   const endAngle = $derived(widget.gauge_settings?.end_angle ?? 270);
-  const innerRadius = $derived(widget.gauge_settings?.inner_radius ?? 0.7);
   const strokeWidth = $derived(widget.gauge_settings?.stroke_width ?? 8);
   const primaryColor = $derived(widget.gauge_settings?.color_primary ?? 'var(--theme-primary)');
   const secondaryColor = $derived(widget.gauge_settings?.color_secondary ?? 'var(--theme-border)');

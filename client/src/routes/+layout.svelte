@@ -1,11 +1,16 @@
 <script lang="ts">
-  import '../app.css';
-  import type { Snippet } from 'svelte';
-  import { initializeStores, visualSettings, connectionStatus, storeUtils, sensorSources, hardwareTree, availableSensors } from '$lib/stores';
-import type { SensorData } from '$lib/types';
-  import { get } from 'svelte/store';
-  import { websocketService } from '$lib/services/websocket';
-  import { apiService } from '$lib/services/api';
+  import { apiService } from "$lib/services/api";
+  import { websocketService } from "$lib/services/websocket";
+  import {
+    connectionStatus,
+    initializeStores,
+    sensorUtils,
+    visualSettings,
+  } from "$lib/stores";
+  import type { SensorData } from "$lib/types";
+  import { logger } from "$lib/utils/logger";
+  import type { Snippet } from "svelte";
+  import "../app.css";
 
   const { children }: { children: Snippet } = $props();
 
@@ -22,48 +27,66 @@ import type { SensorData } from '$lib/types';
       await loadInitialSensorData();
 
       // Start WebSocket connection (only in browser)
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         try {
-          websocketService.connect('ws://localhost:8100/ws');
+          websocketService.connect("ws://localhost:8100/ws");
 
           // Subscribe to WebSocket messages
-          websocketUnsubscribe = websocketService.subscribe((message: { type: string; data?: unknown }) => {
-            if (message.type === 'sensor_data' && message.data) {
-              storeUtils.updateSensorData(message.data as Record<string, SensorData>);
-            }
-          });
+          websocketUnsubscribe = websocketService.subscribe(
+            (message: { type: string; data?: unknown }) => {
+              if (message.type === "sensor_data" && message.data) {
+                sensorUtils.updateSensorData(
+                  message.data as Record<string, SensorData>,
+                );
+              }
+            },
+          );
 
           // Update connection status
-          websocketService.onConnectionChange((status: 'connecting' | 'connected' | 'disconnected' | 'error') => {
-            connectionStatus.set(status);
-          });
+          websocketService.onConnectionChange(
+            (status: "connecting" | "connected" | "disconnected" | "error") => {
+              connectionStatus.set(status);
+            },
+          );
         } catch (error) {
-          console.error('Failed to establish WebSocket connection:', error);
-          connectionStatus.set('error');
+          logger.error("Failed to establish WebSocket connection:", error);
+          connectionStatus.set("error");
         }
       }
 
       // Apply initial visual settings to CSS variables
-      unsubscribeVisualSettings = visualSettings.subscribe(settings => {
-        if (typeof document !== 'undefined') {
+      unsubscribeVisualSettings = visualSettings.subscribe((settings) => {
+        if (typeof document !== "undefined") {
           const root = document.documentElement;
-          root.style.setProperty('--materiality', settings.materiality.toString());
-          root.style.setProperty('--information-density', settings.information_density.toString());
-          root.style.setProperty('--animation-level', settings.animation_level.toString());
-          root.style.setProperty('--grid-size', `${settings.grid_size}px`);
+          root.style.setProperty(
+            "--materiality",
+            settings.materiality.toString(),
+          );
+          root.style.setProperty(
+            "--information-density",
+            settings.information_density.toString(),
+          );
+          root.style.setProperty(
+            "--animation-level",
+            settings.animation_level.toString(),
+          );
+          root.style.setProperty("--grid-size", `${settings.grid_size}px`);
 
           // Apply theme class
-          document.body.className = document.body.className.replace(/theme-\w+/, '');
+          document.body.className = document.body.className.replace(
+            /theme-\w+/,
+            "",
+          );
           document.body.classList.add(`theme-${settings.color_scheme}`);
 
           // Apply font family
-          root.style.setProperty('--font-family', settings.font_family);
+          root.style.setProperty("--font-family", settings.font_family);
 
           // Apply reduced motion preference
           if (settings.reduce_motion) {
-            document.body.classList.add('reduce-motion');
+            document.body.classList.add("reduce-motion");
           } else {
-            document.body.classList.remove('reduce-motion');
+            document.body.classList.remove("reduce-motion");
           }
         }
       });
@@ -85,27 +108,26 @@ import type { SensorData } from '$lib/types';
 
   async function loadInitialSensorData() {
     const sourcesResponse = await apiService.getSensors();
-    console.log('[Layout] Sensor Sources Response:', sourcesResponse);
+    logger.debug("[Layout] Sensor Sources Response:", sourcesResponse);
     if (sourcesResponse.success && sourcesResponse.data) {
-      storeUtils.updateSensorSources(sourcesResponse.data.sources);
-      console.log('[Layout] Updated sensorSources store:', get(sensorSources));
+      sensorUtils.updateSensorSources(sourcesResponse.data.sources);
 
-      const lhmUpdatedSource = sourcesResponse.data.sources['librehardware_updated'];
+      const lhmUpdatedSource =
+        sourcesResponse.data.sources["librehardware_updated"];
       if (lhmUpdatedSource && lhmUpdatedSource.active) {
         const treeResponse = await apiService.getHardwareTree();
-        console.log('[Layout] Hardware Tree Response:', treeResponse);
+        logger.debug("[Layout] Hardware Tree Response:", treeResponse);
         if (treeResponse.success && treeResponse.data) {
-          storeUtils.updateHardwareTree(treeResponse.data.hardware);
-          console.log('[Layout] Updated hardwareTree store:', get(hardwareTree));
+          sensorUtils.updateHardwareTree(treeResponse.data.hardware);
         }
       }
     }
-    // Trigger a log of available sensors after initial load
-    console.log('[Layout] Initial availableSensors:', get(availableSensors));
   }
 </script>
 
-<main class="min-h-screen bg-[var(--theme-background)] text-[var(--theme-text)] font-[var(--font-family)]">
+<main
+  class="min-h-screen bg-[var(--theme-background)] text-[var(--theme-text)] font-[var(--font-family)]"
+>
   {@render children()}
 </main>
 

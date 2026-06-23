@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable } from "svelte/store";
 
 export interface HardwareNode {
   id: string;
@@ -8,4 +8,4 @@ export interface HardwareNode {
   sensors?: string[]; // sensor IDs
 }
 
-export const hardwareTree = writable<HardwareNode[]>([]); 
+export const hardwareTree = writable<HardwareNode[]>([]);

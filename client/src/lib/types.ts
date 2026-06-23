@@ -19,7 +19,7 @@ export interface WidgetConfig {
   id: string;
   sensor_id: string;
   gauge_type: GaugeType;
-  
+
   // Position and size
   pos_x: number;
   pos_y: number;
@@ -27,20 +27,20 @@ export interface WidgetConfig {
   height: number;
   rotation: number;
   z_index: number;
-  
+
   // Widget behavior
   is_locked: boolean;
   group_id?: string;
-  
+
   // Display options
   show_label: boolean;
   custom_label?: string;
   show_unit: boolean;
   custom_unit?: string;
-  
+
   // Gauge-specific settings
   gauge_settings: GaugeSettings;
-  
+
   // Visual styling — open-ended bag of style overrides; values are primitives or string arrays
   style_settings: StyleSettings;
 }
@@ -59,20 +59,20 @@ export interface VisualSettings {
   materiality: number;
   information_density: number;
   animation_level: number;
-  
+
   // Color scheme
   color_scheme: string;
   custom_colors: Record<string, string>;
-  
+
   // Typography
   font_family: string;
   font_scale: number;
-  
+
   // Effects
   enable_blur_effects: boolean;
   enable_animations: boolean;
   reduce_motion: boolean;
-  
+
   // Grid and layout
   grid_size: number;
   snap_to_grid: boolean;
@@ -125,14 +125,20 @@ export interface SensorSourceFromAPI {
   id: string;
   name: string;
   active: boolean;
-  sensors: Record<string, SensorData>; 
+  sensors: Record<string, SensorData>;
   last_update?: string;
   error_message?: string;
 }
 
-export type GaugeType = 'text' | 'radial' | 'linear' | 'graph' | 'image' | 'glassmorphic';
+export type GaugeType =
+  | "text"
+  | "radial"
+  | "linear"
+  | "graph"
+  | "image"
+  | "glassmorphic";
 
-export type EditMode = 'view' | 'edit';
+export type EditMode = "view" | "edit";
 
 export interface Point {
   x: number;
@@ -167,10 +173,10 @@ export interface ResizeState {
   widgetId: string;
 }
 
-export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
+export type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
 export interface Selection {
-  type: 'widget' | 'group';
+  type: "widget" | "group";
   ids: string[];
 }
 
@@ -179,7 +185,7 @@ export interface ContextMenuState {
   x: number;
   y: number;
   target?: {
-    type: 'widget' | 'group' | 'canvas';
+    type: "widget" | "group" | "canvas";
     id?: string;
   };
 }
@@ -216,7 +222,7 @@ export interface GaugeSettings {
   inner_radius?: number;
 
   // Linear gauge specific
-  orientation?: 'horizontal' | 'vertical';
+  orientation?: "horizontal" | "vertical";
   show_scale?: boolean;
 
   // Graph specific
@@ -234,7 +240,7 @@ export interface GaugeSettings {
   glow_intensity?: number;
   blur_level?: number;
   transparency?: number;
-  style?: 'radial' | 'linear' | 'ring';
+  style?: "radial" | "linear" | "ring";
 }
 
 export interface ColorScheme {
@@ -262,13 +268,20 @@ export interface ThemePreset {
 
 // Event types for widget interaction
 export interface WidgetEvent {
-  type: 'select' | 'deselect' | 'move' | 'resize' | 'lock' | 'unlock' | 'delete';
+  type:
+    | "select"
+    | "deselect"
+    | "move"
+    | "resize"
+    | "lock"
+    | "unlock"
+    | "delete";
   widget_id: string;
   data?: Record<string, unknown>;
 }
 
 export interface GroupEvent {
-  type: 'create' | 'update' | 'delete' | 'select' | 'move';
+  type: "create" | "update" | "delete" | "select" | "move";
   group_id: string;
   data?: Record<string, unknown>;
 }
@@ -281,4 +294,4 @@ export interface ApiHardwareNode {
   sensors?: SensorData[];
   sub_hardware?: ApiHardwareNode[];
   [key: string]: unknown;
-} 
+}

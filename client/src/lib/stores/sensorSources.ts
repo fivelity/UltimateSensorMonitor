@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
-import type { SensorSource } from '$lib/types';
+import { writable } from "svelte/store";
+import type { SensorSource } from "$lib/types";
 
-export const sensorSources = writable<SensorSource[]>([]); 
+export const sensorSources = writable<SensorSource[]>([]);

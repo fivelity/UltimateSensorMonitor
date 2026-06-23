@@ -2,9 +2,14 @@
  * WebSocket service for real-time sensor data communication
  */
 
-import { get } from 'svelte/store';
-import { connectionStatus, storeUtils } from '../stores';
-import type { WebSocketMessage, SensorData, SensorSourceFromAPI } from '../types';
+import { logger } from "$lib/utils/logger";
+import { get } from "svelte/store";
+import { connectionStatus, sensorUtils } from "../stores";
+import type {
+    SensorData,
+    SensorSourceFromAPI,
+    WebSocketMessage,
+} from "../types";
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -20,8 +25,8 @@ class WebSocketService {
 
   connect(url?: string): void {
     // Check if we're in a browser environment
-    if (typeof window === 'undefined') {
-      console.warn('WebSocket service not available in SSR environment');
+    if (typeof window === "undefined") {
+      logger.warn("WebSocket service not available in SSR environment");
       return;
     }
 
@@ -34,18 +39,18 @@ class WebSocketService {
       this.url = url;
     } else if (!this.url) {
       // Default URL using current location
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       this.url = `${protocol}//${window.location.host}/ws`;
     }
 
-    connectionStatus.set('connecting');
-    
+    connectionStatus.set("connecting");
+
     try {
       this.ws = new WebSocket(this.url);
       this.setupEventListeners();
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      connectionStatus.set('error');
+      logger.error("Failed to create WebSocket connection:", error);
+      connectionStatus.set("error");
       this.scheduleReconnect();
     }
   }
@@ -54,8 +59,8 @@ class WebSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected');
-      connectionStatus.set('connected');
+      logger.debug("WebSocket connected");
+      connectionStatus.set("connected");
       this.reconnectAttempts = 0;
     };
 
@@ -64,43 +69,51 @@ class WebSocketService {
         const message: WebSocketMessage = JSON.parse(event.data);
         this.handleMessage(message);
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        logger.error("Failed to parse WebSocket message:", error);
       }
     };
 
     this.ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-      connectionStatus.set('disconnected');
-      
+      logger.debug("WebSocket closed:", event.code, event.reason);
+      connectionStatus.set("disconnected");
+
       if (!this.isIntentionalClose) {
         this.scheduleReconnect();
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      connectionStatus.set('error');
+      logger.error("WebSocket error:", error);
+      connectionStatus.set("error");
     };
   }
 
   private handleMessage(message: WebSocketMessage): void {
     switch (message.type) {
-      case 'connection_established':
-        console.log('Connection established:', message.message);
+      case "connection_established":
+        logger.debug("Connection established:", message.message);
         break;
 
-      case 'sensor_data': {
-        console.log('[WebSocket] Received sensor_data message:', message);
+      case "sensor_data": {
+        logger.debug("[WebSocket] Received sensor_data message:", message);
 
-        const msgData = message as WebSocketMessage & { sources?: Record<string, SensorSourceFromAPI> };
-        const sources = msgData.sources ?? (msgData.data as { sources?: Record<string, SensorSourceFromAPI> } | undefined)?.sources;
+        const msgData = message as WebSocketMessage & {
+          sources?: Record<string, SensorSourceFromAPI>;
+        };
+        const sources =
+          msgData.sources ??
+          (
+            msgData.data as
+              | { sources?: Record<string, SensorSourceFromAPI> }
+              | undefined
+          )?.sources;
 
         if (sources) {
           const allSensorReadings: Record<string, SensorData> = {};
 
           for (const sourceKey in sources) {
             const source = sources[sourceKey];
-            console.log(`[WebSocket] Processing source ${sourceKey}:`, source);
+            logger.debug(`[WebSocket] Processing source ${sourceKey}:`, source);
 
             if (source.active && source.sensors) {
               for (const sensorId in source.sensors) {
@@ -108,48 +121,61 @@ class WebSocketService {
                 allSensorReadings[sensorId] = {
                   ...reading,
                   source: sourceKey,
-                  timestamp: reading.timestamp ?? new Date().toISOString()
+                  timestamp: reading.timestamp ?? new Date().toISOString(),
                 };
               }
             }
           }
 
-          console.log('[WebSocket] Processed sensor readings:', allSensorReadings);
-          console.log('[WebSocket] Total sensors processed:', Object.keys(allSensorReadings).length);
-          storeUtils.updateSensorData(allSensorReadings);
+          logger.debug(
+            "[WebSocket] Processed sensor readings:",
+            allSensorReadings,
+          );
+          logger.debug(
+            "[WebSocket] Total sensors processed:",
+            Object.keys(allSensorReadings).length,
+          );
+          sensorUtils.updateSensorData(allSensorReadings);
         } else {
-          console.warn('[WebSocket] Sensor data message missing expected structure:', message);
+          logger.warn(
+            "[WebSocket] Sensor data message missing expected structure:",
+            message,
+          );
         }
         break;
       }
 
-      case 'sensor_sources_updated':
+      case "sensor_sources_updated":
         if (message.content) {
-          storeUtils.updateSensorSources(message.content as Record<string, SensorSourceFromAPI>);
+          sensorUtils.updateSensorSources(
+            message.content as Record<string, SensorSourceFromAPI>,
+          );
         }
         break;
 
-      case 'error':
-        console.error('Server error:', message.content);
+      case "error":
+        logger.error("Server error:", message.content);
         break;
 
       default:
-        console.log('Unknown message type:', message.type, message);
+        logger.debug("Unknown message type:", message.type, message);
     }
   }
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
-      connectionStatus.set('error');
+      logger.error("Max reconnection attempts reached");
+      connectionStatus.set("error");
       return;
     }
 
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
     this.reconnectAttempts++;
 
-    console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
+    logger.debug(
+      `Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+    );
+
     setTimeout(() => {
       this.connect();
     }, delay);
@@ -159,7 +185,7 @@ class WebSocketService {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket is not connected');
+      logger.warn("WebSocket is not connected");
     }
   }
 
@@ -169,7 +195,7 @@ class WebSocketService {
       this.ws.close();
       this.ws = null;
     }
-    connectionStatus.set('disconnected');
+    connectionStatus.set("disconnected");
   }
 
   reconnect(): void {
@@ -188,7 +214,7 @@ class WebSocketService {
     // This could be implemented with a proper event emitter
     // For now, we'll use the existing store-based approach
     const originalHandleMessage = this.handleMessage.bind(this);
-    
+
     this.handleMessage = (message: WebSocketMessage) => {
       originalHandleMessage(message);
       callback(message);
@@ -201,7 +227,11 @@ class WebSocketService {
   }
 
   // Method to handle connection status changes (for backward compatibility)
-  onConnectionChange(callback: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void): () => void {
+  onConnectionChange(
+    callback: (
+      status: "connecting" | "connected" | "disconnected" | "error",
+    ) => void,
+  ): () => void {
     // Subscribe to connection status changes
     const unsubscribe = connectionStatus.subscribe(callback);
     // Return the unsubscribe function (though we're not capturing it in the current usage)
@@ -213,23 +243,26 @@ class WebSocketService {
 export const websocketService = new WebSocketService();
 
 // Auto-connect when the module is imported (only in browser)
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Connect when the page becomes visible
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && websocketService.getConnectionState() === 'disconnected') {
+  document.addEventListener("visibilitychange", () => {
+    if (
+      !document.hidden &&
+      websocketService.getConnectionState() === "disconnected"
+    ) {
       websocketService.reconnect();
     }
   });
 
   // Connect when the page comes back online
-  window.addEventListener('online', () => {
-    if (websocketService.getConnectionState() !== 'connected') {
+  window.addEventListener("online", () => {
+    if (websocketService.getConnectionState() !== "connected") {
       websocketService.reconnect();
     }
   });
 
   // Disconnect when going offline
-  window.addEventListener('offline', () => {
+  window.addEventListener("offline", () => {
     websocketService.disconnect();
   });
-} 
+}

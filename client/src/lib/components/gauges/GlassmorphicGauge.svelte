@@ -7,8 +7,6 @@
   const glow_intensity = $derived(widget.gauge_settings.glow_intensity || 0.5);
   const blur_level = $derived(widget.gauge_settings.blur_level || 0.3);
   const transparency = $derived(widget.gauge_settings.transparency || 0.8);
-  const primary_color = $derived(widget.gauge_settings.color_primary || 'var(--theme-primary)');
-  const secondary_color = $derived(widget.gauge_settings.color_secondary || 'var(--theme-secondary)');
   const gauge_style = $derived(widget.gauge_settings.style || 'radial'); // 'radial' | 'linear' | 'ring'
 
   // Data processing
@@ -236,7 +234,7 @@
   <!-- Floating Particles Effect -->
   {#if glow_intensity > 0.7}
     <div class="particles">
-      {#each Array(6) as _, i}
+      {#each Array(6) as _particle, i}
         <div
           class="particle"
           style="

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { editMode, selectedWidgets, storeUtils } from '$lib/stores';
-  import { configService } from '$lib/services/configService';
-  import type { WidgetConfig } from '$lib/types';
+  import { configService, type AppConfig } from "$lib/services/configService";
+  import { editMode, selectedWidgets } from "$lib/stores";
+  import type { WidgetConfig } from "$lib/types";
 
-  import WidgetContent from './WidgetContent.svelte';
-  import WidgetControls from './WidgetControls.svelte';
-  import ResizeHandles from './ResizeHandles.svelte';
-  import WidgetBorder from './WidgetBorder.svelte';
+  import ResizeHandles from "./ResizeHandles.svelte";
+  import WidgetBorder from "./WidgetBorder.svelte";
+  import WidgetContent from "./WidgetContent.svelte";
+  import WidgetControls from "./WidgetControls.svelte";
 
   const {
     widget,
@@ -16,31 +16,41 @@
     onwidgetDelete,
   }: {
     widget: WidgetConfig;
-    onwidgetUpdated?: (data: { id: string; updates: Partial<WidgetConfig> }) => void;
-    onwidgetSelected?: (data: { id: string; multiSelect: boolean }) => void;
-    onwidgetContextMenu?: (data: { id: string; x: number; y: number }) => void;
-    onwidgetDelete?: (data: { id: string }) => void;
+    onwidgetUpdated?: (_data: {
+      id: string;
+      updates: Partial<WidgetConfig>;
+    }) => void;
+    onwidgetSelected?: (_data: { id: string; multiSelect: boolean }) => void;
+    onwidgetContextMenu?: (_data: { id: string; x: number; y: number }) => void;
+    onwidgetDelete?: (_data: { id: string }) => void;
   } = $props();
 
   let containerElement: HTMLDivElement | undefined = $state();
   let isDragging = $state(false);
   let dragStart = $state({ x: 0, y: 0 });
   let initialPos = $state({ x: 0, y: 0 });
-  let config = $state(configService.getConfig());
+  let config = $state<AppConfig | null>(null);
 
   // Reactive state
-  const isSelected = $derived($selectedWidgets.type === 'widget' && $selectedWidgets.ids.includes(widget.id));
+  const isSelected = $derived(
+    $selectedWidgets.type === "widget" &&
+      $selectedWidgets.ids.includes(widget.id),
+  );
   const isLocked = $derived(widget.is_locked);
-  const showControls = $derived($editMode === 'edit' && isSelected && !isLocked);
-  const canEdit = $derived($editMode === 'edit');
+  const showControls = $derived(
+    $editMode === "edit" && isSelected && !isLocked,
+  );
+  const canEdit = $derived($editMode === "edit");
 
   // Performance optimization
   let updateThrottle = $state(0);
-  const throttleDelay = config.performance.widgetUpdateThrottle;
+  const throttleDelay = $derived(
+    config?.performance.widgetUpdateThrottle ?? 16,
+  );
 
   $effect(() => {
     // Load configuration
-    configService.loadConfig().then(loadedConfig => {
+    configService.loadConfig().then((loadedConfig) => {
       config = loadedConfig;
     });
 
@@ -49,6 +59,18 @@
       if (updateThrottle) {
         clearTimeout(updateThrottle);
       }
+    };
+  });
+
+  $effect(() => {
+    if (!isDragging) return;
+
+    document.addEventListener("mousemove", handleDragMove);
+    document.addEventListener("mouseup", handleDragEnd);
+
+    return () => {
+      document.removeEventListener("mousemove", handleDragMove);
+      document.removeEventListener("mouseup", handleDragEnd);
     };
   });
 
@@ -64,7 +86,7 @@
 
     // Start drag if not clicking on resize handle
     const target = event.target as HTMLElement;
-    if (!target.closest('[data-resize-handle]')) {
+    if (!target.closest("[data-resize-handle]")) {
       startDrag(event);
     }
   }
@@ -86,7 +108,7 @@
     onwidgetContextMenu?.({
       id: widget.id,
       x: event.clientX,
-      y: event.clientY
+      y: event.clientY,
     });
   }
 
@@ -94,14 +116,9 @@
     isDragging = true;
     dragStart = { x: event.clientX, y: event.clientY };
     initialPos = { x: widget.pos_x, y: widget.pos_y };
-
-    document.addEventListener('mousemove', handleDragMove);
-    document.addEventListener('mouseup', handleDragEnd);
   }
 
   function handleDragMove(event: MouseEvent) {
-    if (!isDragging) return;
-
     // Throttle updates for performance
     if (updateThrottle) return;
 
@@ -119,7 +136,7 @@
       // Emit update
       onwidgetUpdated?.({
         id: widget.id,
-        updates: { pos_x: newX, pos_y: newY }
+        updates: { pos_x: newX, pos_y: newY },
       });
 
       updateThrottle = 0;
@@ -128,32 +145,35 @@
 
   function handleDragEnd() {
     isDragging = false;
-    document.removeEventListener('mousemove', handleDragMove);
-    document.removeEventListener('mouseup', handleDragEnd);
   }
 
-  function handleResize(data: { width: number; height: number; x?: number; y?: number }) {
+  function handleResize(data: {
+    width: number;
+    height: number;
+    x?: number;
+    y?: number;
+  }) {
     const { width, height } = data;
 
     // Apply size constraints
-    const minWidth = config.widgets.minWidgetWidth;
-    const minHeight = config.widgets.minWidgetHeight;
-    const maxWidth = config.widgets.maxWidgetWidth;
-    const maxHeight = config.widgets.maxWidgetHeight;
+    const minWidth = config?.widgets.minWidgetWidth ?? 50;
+    const minHeight = config?.widgets.minWidgetHeight ?? 30;
+    const maxWidth = config?.widgets.maxWidgetWidth ?? 800;
+    const maxHeight = config?.widgets.maxWidgetHeight ?? 600;
 
     const constrainedWidth = Math.max(minWidth, Math.min(maxWidth, width));
     const constrainedHeight = Math.max(minHeight, Math.min(maxHeight, height));
 
     onwidgetUpdated?.({
       id: widget.id,
-      updates: { width: constrainedWidth, height: constrainedHeight }
+      updates: { width: constrainedWidth, height: constrainedHeight },
     });
   }
 
   function handleLockToggle() {
     onwidgetUpdated?.({
       id: widget.id,
-      updates: { is_locked: !widget.is_locked }
+      updates: { is_locked: !widget.is_locked },
     });
   }
 </script>
@@ -176,6 +196,15 @@
   onmousedown={handleContainerMouseDown}
   onclick={handleContainerClick}
   oncontextmenu={handleContextMenu}
+  onkeydown={(event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onwidgetSelected?.({
+        id: widget.id,
+        multiSelect: event.shiftKey || event.ctrlKey,
+      });
+    }
+  }}
   role="button"
   tabindex="0"
 >
@@ -196,9 +225,7 @@
 
   <!-- Resize Handles (Edit Mode Only) -->
   {#if canEdit && !isLocked}
-    <ResizeHandles
-      onresize={handleResize}
-    />
+    <ResizeHandles onresize={handleResize} />
   {/if}
 </div>
 

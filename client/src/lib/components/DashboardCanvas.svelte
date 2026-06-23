@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { editMode, selectedWidgets, visualSettings, storeUtils } from '$lib/stores';
-  import { widgetArray } from '$lib/stores/data/widgets';
-  import { uiUtils } from '$lib/stores/core/ui';
-  import { widgetUtils } from '$lib/stores/data/widgets';
-  import WidgetContainer from './widgets/core/WidgetContainer.svelte';
-  import type { Point, Bounds, WidgetConfig } from '$lib/types';
+  import { editMode, selectedWidgets, visualSettings } from "$lib/stores";
+  import { uiUtils } from "$lib/stores/core/ui";
+  import { widgetArray, widgetUtils } from "$lib/stores/data/widgets";
+  import type { Bounds, Point, WidgetConfig } from "$lib/types";
+  import WidgetContainer from "./widgets/core/WidgetContainer.svelte";
 
   interface SelectionRect {
     left: number;
@@ -22,12 +21,15 @@
     if (!canvasElement) return;
 
     const handleMouseDown = (event: MouseEvent) => {
-      if ($editMode !== 'edit') return;
+      if ($editMode !== "edit") return;
 
       const target = event.target as Element;
 
       // Only start selection if clicking on the canvas itself
-      if (target === canvasElement || target.closest('[data-canvas-background]')) {
+      if (
+        target === canvasElement ||
+        target.closest("[data-canvas-background]")
+      ) {
         startSelection(event);
       }
     };
@@ -40,14 +42,14 @@
       if (isSelecting) finishSelection(event);
     };
 
-    canvasElement.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    canvasElement.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      canvasElement?.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      canvasElement?.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   });
 
@@ -55,7 +57,10 @@
     if (!canvasElement) return;
     isSelecting = true;
     const rect = canvasElement.getBoundingClientRect();
-    selectionStart = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    selectionStart = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
     selectionEnd = { ...selectionStart };
 
     if (!event.shiftKey) {
@@ -66,7 +71,10 @@
   function updateSelection(event: MouseEvent) {
     if (!isSelecting || !canvasElement) return;
     const rect = canvasElement.getBoundingClientRect();
-    selectionEnd = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    selectionEnd = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
   }
 
   function finishSelection(event: MouseEvent) {
@@ -77,18 +85,18 @@
       x: Math.min(selectionStart.x, selectionEnd.x),
       y: Math.min(selectionStart.y, selectionEnd.y),
       width: Math.abs(selectionEnd.x - selectionStart.x),
-      height: Math.abs(selectionEnd.y - selectionStart.y)
+      height: Math.abs(selectionEnd.y - selectionStart.y),
     };
 
     if (selRect.width > 5 && selRect.height > 5) {
       const selectedIds: string[] = [];
 
-      $widgetArray.forEach(widget => {
+      $widgetArray.forEach((widget) => {
         const widgetRect: Bounds = {
           x: widget.pos_x,
           y: widget.pos_y,
           width: widget.width,
-          height: widget.height
+          height: widget.height,
         };
 
         if (boundsIntersect(selRect, widgetRect)) {
@@ -98,28 +106,33 @@
 
       if (selectedIds.length > 0) {
         if (event.shiftKey) {
-          selectedIds.forEach(id => uiUtils.addToSelection(id));
+          selectedIds.forEach((id) => uiUtils.addToSelection(id));
         } else {
-          selectedWidgets.set({ type: 'widget', ids: selectedIds });
+          selectedWidgets.set({ type: "widget", ids: selectedIds });
         }
       }
     }
   }
 
   function boundsIntersect(a: Bounds, b: Bounds): boolean {
-    return !(b.x > a.x + a.width ||
-             b.x + b.width < a.x ||
-             b.y > a.y + a.height ||
-             b.y + b.height < a.y);
+    return !(
+      b.x > a.x + a.width ||
+      b.x + b.width < a.x ||
+      b.y > a.y + a.height ||
+      b.y + b.height < a.y
+    );
   }
 
   function handleCanvasRightClick(event: MouseEvent) {
-    if ($editMode !== 'edit') return;
+    if ($editMode !== "edit") return;
     event.preventDefault();
-    uiUtils.showContextMenu(event.clientX, event.clientY, { type: 'canvas' });
+    uiUtils.showContextMenu(event.clientX, event.clientY, { type: "canvas" });
   }
 
-  function handleWidgetUpdated(data: { id: string; updates: Partial<WidgetConfig> }) {
+  function handleWidgetUpdated(data: {
+    id: string;
+    updates: Partial<WidgetConfig>;
+  }) {
     widgetUtils.updateWidget(data.id, data.updates);
   }
 
@@ -128,27 +141,31 @@
   }
 
   function handleWidgetContextMenu(data: { id: string; x: number; y: number }) {
-    uiUtils.showContextMenu(data.x, data.y, { type: 'widget', id: data.id });
+    uiUtils.showContextMenu(data.x, data.y, { type: "widget", id: data.id });
   }
 
   function handleWidgetDelete(data: { id: string }) {
     widgetUtils.removeWidget(data.id);
-    storeUtils.clearSelection();
+    uiUtils.clearSelection();
   }
 
   // Selection rect for display
-  const selectionRect = $derived<SelectionRect | null>(isSelecting ? {
-    left: Math.min(selectionStart.x, selectionEnd.x),
-    top: Math.min(selectionStart.y, selectionEnd.y),
-    width: Math.abs(selectionEnd.x - selectionStart.x),
-    height: Math.abs(selectionEnd.y - selectionStart.y)
-  } : null);
+  const selectionRect = $derived<SelectionRect | null>(
+    isSelecting
+      ? {
+          left: Math.min(selectionStart.x, selectionEnd.x),
+          top: Math.min(selectionStart.y, selectionEnd.y),
+          width: Math.abs(selectionEnd.x - selectionStart.x),
+          height: Math.abs(selectionEnd.y - selectionStart.y),
+        }
+      : null,
+  );
 </script>
 
 <div
   bind:this={canvasElement}
   class="dashboard-canvas w-full h-full relative overflow-auto bg-[var(--theme-background)] cursor-default"
-  class:cursor-crosshair={$editMode === 'edit'}
+  class:cursor-crosshair={$editMode === "edit"}
   role="application"
   aria-label="Dashboard canvas"
   tabindex="-1"
@@ -156,8 +173,10 @@
   data-canvas-background
 >
   <!-- Canvas content area -->
-  <div class="canvas-content relative min-w-full min-h-full" style="width: max(100%, 1920px); height: max(100%, 1080px);">
-
+  <div
+    class="canvas-content relative min-w-full min-h-full"
+    style="width: max(100%, 1920px); height: max(100%, 1080px);"
+  >
     <!-- Widgets -->
     {#each $widgetArray as widget (widget.id)}
       <WidgetContainer
@@ -170,7 +189,7 @@
     {/each}
 
     <!-- Selection rectangle -->
-    {#if selectionRect && $editMode === 'edit'}
+    {#if selectionRect && $editMode === "edit"}
       <div
         class="selection-rectangle absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20 pointer-events-none rounded"
         style="
@@ -183,7 +202,7 @@
     {/if}
 
     <!-- Grid overlay (dynamic size based on settings) -->
-    {#if $editMode === 'edit' && $visualSettings.show_grid}
+    {#if $editMode === "edit" && $visualSettings.show_grid}
       <div
         class="grid-overlay absolute inset-0 pointer-events-none opacity-30"
         style="--grid-size: {$visualSettings.grid_size}px"
@@ -200,8 +219,11 @@
 
   .canvas-content {
     position: relative;
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(var(--theme-border-rgb), 0.15) 1px, transparent 0);
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgba(var(--theme-border-rgb), 0.15) 1px,
+      transparent 0
+    );
     background-size: 20px 20px;
   }
 
@@ -223,7 +245,11 @@
   .grid-overlay[style*="--grid-size: 3px"],
   .grid-overlay[style*="--grid-size: 4px"],
   .grid-overlay[style*="--grid-size: 5px"] {
-    background-image: radial-gradient(circle, var(--theme-border) 0.5px, transparent 0.5px);
+    background-image: radial-gradient(
+      circle,
+      var(--theme-border) 0.5px,
+      transparent 0.5px
+    );
   }
 
   /* Performance optimizations */

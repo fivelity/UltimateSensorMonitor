@@ -40,7 +40,8 @@
   --color-dark-900: #0f172a;
 
   /* ── Typography ─────────────────────────────── */
-  --font-family-mono: "JetBrains Mono", "Fira Code", "Monaco", "Consolas", monospace;
+  --font-family-mono:
+    "JetBrains Mono", "Fira Code", "Monaco", "Consolas", monospace;
   --font-family-display: "Inter", system-ui, sans-serif;
 
   /* ── Backdrop blur ──────────────────────────── */
@@ -55,18 +56,34 @@
   --animate-scale-in: scaleIn 0.2s ease-out;
 
   @keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slideUp {
-    from { transform: translateY(10px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 
   @keyframes scaleIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to   { transform: scale(1);    opacity: 1; }
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 }
 
@@ -125,7 +142,9 @@
 .widget-shell:hover {
   background: rgba(255, 255, 255, calc(0.15 + var(--materiality) * 0.85));
   transform: translateY(calc(-1px * var(--animation-level)));
-  box-shadow: 0 calc(4px * (1 + var(--materiality))) calc(12px * (1 + var(--materiality))) rgba(0, 0, 0, calc(0.1 + var(--materiality) * 0.1));
+  box-shadow: 0 calc(4px * (1 + var(--materiality)))
+    calc(12px * (1 + var(--materiality)))
+    rgba(0, 0, 0, calc(0.1 + var(--materiality) * 0.1));
 }
 
 .glass-effect {
@@ -214,7 +233,11 @@
   height: 100%;
   border-radius: 10px;
   transition: width 0.3s ease;
-  background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary));
+  background: linear-gradient(
+    90deg,
+    var(--theme-primary),
+    var(--theme-secondary)
+  );
 }
 
 /* ── Context menu ────────────────────────────── */

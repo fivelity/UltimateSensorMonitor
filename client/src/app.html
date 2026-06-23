@@ -1,45 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" %sveltekit.theme%>
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
-		<meta name="viewport" content="width=device-width" />
-		<title>Ultimate Sensor Monitor Reimagined</title>
-		<meta name="description" content="Highly customizable, visually rich hardware monitoring dashboard" />
-		
-		<!-- Fonts -->
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-		
-		%sveltekit.head%
-		<style>
-			/* Performance optimizations for drag and drop */
-			body.dragging * {
-				pointer-events: none !important;
-				user-select: none !important;
-			}
-			
-			body.dragging .widget-shell {
-				pointer-events: auto !important;
-			}
-			
-			body.dragging .grid-pattern {
-				will-change: transform;
-			}
-			
-			/* Smooth transitions */
-			.widget-shell {
-				will-change: transform, left, top, width, height;
-			}
-			
-			/* Disable transitions during drag for better performance */
-			body.dragging .widget-shell {
-				transition: none !important;
-			}
-		</style>
-	</head>
-	<body data-sveltekit-preload-data="hover" class="bg-white dark:bg-dark-900 text-gray-900 dark:text-gray-100 font-display">
-		<div style="display: contents">%sveltekit.body%</div>
-	</body>
-</html> 
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Ultimate Sensor Monitor Reimagined</title>
+    <meta
+      name="description"
+      content="Highly customizable, visually rich hardware monitoring dashboard"
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    %sveltekit.head%
+    <style>
+      /* Performance optimizations for drag and drop */
+      body.dragging * {
+        pointer-events: none !important;
+        user-select: none !important;
+      }
+
+      body.dragging .widget-shell {
+        pointer-events: auto !important;
+      }
+
+      body.dragging .grid-pattern {
+        will-change: transform;
+      }
+
+      /* Smooth transitions */
+      .widget-shell {
+        will-change: transform, left, top, width, height;
+      }
+
+      /* Disable transitions during drag for better performance */
+      body.dragging .widget-shell {
+        transition: none !important;
+      }
+    </style>
+  </head>
+  <body
+    data-sveltekit-preload-data="hover"
+    class="bg-white dark:bg-dark-900 text-gray-900 dark:text-gray-100 font-display"
+  >
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

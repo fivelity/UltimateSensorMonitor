@@ -1,7 +1,7 @@
 <script lang="ts">
   import { availableSensors, sensorData, storeUtils } from '$lib/stores';
   import { X, Thermometer, Cpu, Zap, Gauge, Plus, ChevronDown, ChevronRight } from '@lucide/svelte';
-  import type { GaugeType, SensorData, WidgetConfig } from '$lib/types';
+  import type { GaugeType, SensorData, SensorInfo, StyleSettings, WidgetConfig } from '$lib/types';
 
   const { onclose }: { onclose?: () => void } = $props();
 
@@ -16,7 +16,7 @@
       }
       acc[sensor.category].push(sensor);
       return acc;
-    }, {} as Record<string, SensorData[]>)
+    }, {} as Record<string, SensorInfo[]>)
   );
 
   // Category icons
@@ -42,7 +42,7 @@
     expandedCategory = expandedCategory === category ? null : category;
   }
 
-  function createWidget(sensor: SensorData, gaugeType: GaugeType = 'text') {
+  function createWidget(sensor: SensorInfo, gaugeType: GaugeType = 'text') {
     const widget: WidgetConfig = {
       id: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       sensor_id: sensor.id,
@@ -57,7 +57,7 @@
       show_label: true,
       show_unit: true,
       gauge_settings: {},
-      style_settings: {}
+      style_settings: {} as StyleSettings
     };
 
     storeUtils.addWidget(widget);

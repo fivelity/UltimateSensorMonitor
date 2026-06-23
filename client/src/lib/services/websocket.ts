@@ -3,8 +3,8 @@
  */
 
 import { get } from 'svelte/store';
-import { connectionStatus, sensorData, storeUtils } from '../stores';
-import type { WebSocketMessage, SensorData } from '../types';
+import { connectionStatus, storeUtils } from '../stores';
+import type { WebSocketMessage, SensorData, SensorSourceFromAPI } from '../types';
 
 class WebSocketService {
   private ws: WebSocket | null = null;
@@ -89,31 +89,31 @@ class WebSocketService {
         console.log('Connection established:', message.message);
         break;
 
-      case 'sensor_data':
+      case 'sensor_data': {
         console.log('[WebSocket] Received sensor_data message:', message);
-        
-        const msgData = message as any; // Cast to any to handle dynamic properties
-        const sources = msgData.sources || (msgData.data && msgData.data.sources);
-        
+
+        const msgData = message as WebSocketMessage & { sources?: Record<string, SensorSourceFromAPI> };
+        const sources = msgData.sources ?? (msgData.data as { sources?: Record<string, SensorSourceFromAPI> } | undefined)?.sources;
+
         if (sources) {
           const allSensorReadings: Record<string, SensorData> = {};
-          
+
           for (const sourceKey in sources) {
             const source = sources[sourceKey];
             console.log(`[WebSocket] Processing source ${sourceKey}:`, source);
-            
+
             if (source.active && source.sensors) {
               for (const sensorId in source.sensors) {
-                const sensorData = source.sensors[sensorId];
+                const reading = source.sensors[sensorId];
                 allSensorReadings[sensorId] = {
-                  ...sensorData,
-                  source: sourceKey, // Ensure the source ID is part of the sensor data
-                  timestamp: sensorData.timestamp || new Date().toISOString()
+                  ...reading,
+                  source: sourceKey,
+                  timestamp: reading.timestamp ?? new Date().toISOString()
                 };
               }
             }
           }
-          
+
           console.log('[WebSocket] Processed sensor readings:', allSensorReadings);
           console.log('[WebSocket] Total sensors processed:', Object.keys(allSensorReadings).length);
           storeUtils.updateSensorData(allSensorReadings);
@@ -121,10 +121,11 @@ class WebSocketService {
           console.warn('[WebSocket] Sensor data message missing expected structure:', message);
         }
         break;
+      }
 
       case 'sensor_sources_updated':
         if (message.content) {
-          storeUtils.updateSensorSources(message.content);
+          storeUtils.updateSensorSources(message.content as Record<string, SensorSourceFromAPI>);
         }
         break;
 
@@ -154,7 +155,7 @@ class WebSocketService {
     }, delay);
   }
 
-  send(message: any): void {
+  send(message: WebSocketMessage): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {

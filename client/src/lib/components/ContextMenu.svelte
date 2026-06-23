@@ -10,9 +10,17 @@
     onfindInSidebar?: (sensorId: string) => void;
   }
 
-  type MenuItem =
-    | { label: string; action: string; icon?: string; danger?: boolean }
-    | { type: 'divider' };
+  type MenuActionItem = { label: string; action: string; icon?: string; danger?: boolean };
+  type MenuDivider = { type: 'divider' };
+  type MenuItem = MenuActionItem | MenuDivider;
+
+  function isDivider(item: MenuItem): item is MenuDivider {
+    return 'type' in item && item.type === 'divider';
+  }
+
+  function asAction(item: MenuItem): MenuActionItem {
+    return item as MenuActionItem;
+  }
 
   const { x, y, target = undefined, onfindInSidebar }: Props = $props();
 
@@ -258,22 +266,26 @@
   bind:this={menuElement}
   class="context-menu fixed z-50 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg shadow-lg py-1 min-w-48"
   style="left: {adjustedX}px; top: {adjustedY}px;"
+  role="menu"
+  tabindex="-1"
   onclick={(e) => e.stopPropagation()}
+  onkeydown={(e) => e.stopPropagation()}
 >
   {#each menuItems as item}
-    {#if item.type === 'divider'}
+    {#if isDivider(item)}
       <div class="h-px bg-[var(--theme-border)] my-1"></div>
     {:else}
+      {@const action = asAction(item)}
       <button
         class="w-full px-3 py-2 text-left text-sm hover:bg-[var(--theme-background)] transition-colors flex items-center gap-2"
-        class:text-red-600={item.danger}
-        class:text-[var(--theme-text)]={!item.danger}
-        onclick={() => handleAction(item.action)}
+        class:text-red-600={action.danger}
+        class:text-[var(--theme-text)]={!action.danger}
+        onclick={() => handleAction(action.action)}
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getIcon(item.icon)} />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getIcon(action.icon ?? '')} />
         </svg>
-        {item.label}
+        {action.label}
       </button>
     {/if}
   {/each}

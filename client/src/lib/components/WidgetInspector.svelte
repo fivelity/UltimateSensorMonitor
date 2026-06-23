@@ -1,6 +1,6 @@
 <script lang="ts">
   import { selectedWidgetConfigs, storeUtils, sensorSources } from '$lib/stores';
-  import type { GaugeType, SensorData, WidgetConfig } from '$lib/types';
+  import type { GaugeType, SensorData, StyleSettings, WidgetConfig } from '$lib/types';
 
   const gaugeTypes: { value: GaugeType; label: string; description: string }[] = [
     { value: 'text', label: 'Text Value', description: 'Simple text display' },
@@ -31,9 +31,9 @@
     }
   }
 
-  function updateStyleSettings(key: string, value: unknown) {
+  function updateStyleSettings(key: string, value: string | number | boolean) {
     if (selectedWidget) {
-      const newSettings = { ...selectedWidget.style_settings, [key]: value };
+      const newSettings: StyleSettings = { ...selectedWidget.style_settings, [key]: value };
       updateWidget({ style_settings: newSettings });
     }
   }

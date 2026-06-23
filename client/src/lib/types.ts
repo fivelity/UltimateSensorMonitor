@@ -39,10 +39,10 @@ export interface WidgetConfig {
   custom_unit?: string;
   
   // Gauge-specific settings
-  gauge_settings: Record<string, any>;
+  gauge_settings: GaugeSettings;
   
-  // Visual styling
-  style_settings: Record<string, any>;
+  // Visual styling — open-ended bag of style overrides; values are primitives or string arrays
+  style_settings: StyleSettings;
 }
 
 export interface WidgetGroup {
@@ -83,7 +83,7 @@ export interface DashboardLayout {
   canvas_width: number;
   canvas_height: number;
   background_type: string;
-  background_settings: Record<string, any>;
+  background_settings: Record<string, unknown>;
 }
 
 export interface DashboardPreset {
@@ -114,7 +114,9 @@ export interface SensorInfo {
   name: string;
   category: string;
   unit: string;
-  source: string; 
+  source: string;
+  min_value?: number;
+  max_value?: number;
 }
 
 // NEW TYPE for the structure received from the /api/sensors backend for a single source
@@ -185,42 +187,54 @@ export interface ContextMenuState {
 export interface WebSocketMessage {
   type: string;
   timestamp: string;
-  data?: any;
-  content?: any;
+  data?: Record<string, unknown>;
+  content?: Record<string, unknown>;
   message?: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
 }
 
+/** Open-ended bag of per-widget style overrides driven by Visual Dimensions. */
+export type StyleSettings = Record<string, string | number | boolean>;
+
 export interface GaugeSettings {
   // Common settings
   color_primary?: string;
   color_secondary?: string;
   stroke_width?: number;
-  
+  min_value?: number;
+  max_value?: number;
+
   // Radial gauge specific
   start_angle?: number;
   end_angle?: number;
   inner_radius?: number;
-  
+
   // Linear gauge specific
   orientation?: 'horizontal' | 'vertical';
   show_scale?: boolean;
-  
+
   // Graph specific
   line_color?: string;
   fill_area?: boolean;
   show_points?: boolean;
   time_range?: number; // seconds
-  
+
   // Image sequence specific
   images?: string[];
+  image_sequence?: string[];
   animation_speed?: number;
+
+  // Glassmorphic gauge specific
+  glow_intensity?: number;
+  blur_level?: number;
+  transparency?: number;
+  style?: 'radial' | 'linear' | 'ring';
 }
 
 export interface ColorScheme {
@@ -250,11 +264,21 @@ export interface ThemePreset {
 export interface WidgetEvent {
   type: 'select' | 'deselect' | 'move' | 'resize' | 'lock' | 'unlock' | 'delete';
   widget_id: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 export interface GroupEvent {
   type: 'create' | 'update' | 'delete' | 'select' | 'move';
   group_id: string;
-  data?: any;
+  data?: Record<string, unknown>;
+}
+
+/** Hardware node as returned by the /api/sensors/hardware-tree endpoint */
+export interface ApiHardwareNode {
+  id: string;
+  name: string;
+  type?: string;
+  sensors?: SensorData[];
+  sub_hardware?: ApiHardwareNode[];
+  [key: string]: unknown;
 } 

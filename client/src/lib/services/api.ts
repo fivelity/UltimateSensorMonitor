@@ -2,7 +2,7 @@
  * API service for communicating with the backend
  */
 
-import type { DashboardPreset, WidgetGroup, SensorSource, ApiResponse } from '../types';
+import type { DashboardPreset, WidgetGroup, ApiResponse, ApiHardwareNode, SensorData, SensorSourceFromAPI } from '../types';
 
 class ApiService {
   private baseUrl: string;
@@ -40,15 +40,15 @@ class ApiService {
   }
 
   // Sensor endpoints
-  async getSensors(): Promise<ApiResponse<{ sources: Record<string, SensorSource> }>> {
+  async getSensors(): Promise<ApiResponse<{ sources: Record<string, SensorSourceFromAPI> }>> {
     return this.request('/sensors');
   }
 
-  async getCurrentSensorData(): Promise<ApiResponse<{ timestamp: string; data: any }>> {
+  async getCurrentSensorData(): Promise<ApiResponse<{ timestamp: string; data: Record<string, SensorData> }>> {
     return this.request('/sensors/current');
   }
 
-  async getHardwareTree(): Promise<ApiResponse<{ hardware: any[] }>> {
+  async getHardwareTree(): Promise<ApiResponse<{ hardware: ApiHardwareNode[] }>> {
     return this.request('/sensors/hardware-tree');
   }
 

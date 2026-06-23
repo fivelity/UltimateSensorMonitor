@@ -2,6 +2,7 @@
   import '../app.css';
   import type { Snippet } from 'svelte';
   import { initializeStores, visualSettings, connectionStatus, storeUtils, sensorSources, hardwareTree, availableSensors } from '$lib/stores';
+import type { SensorData } from '$lib/types';
   import { get } from 'svelte/store';
   import { websocketService } from '$lib/services/websocket';
   import { apiService } from '$lib/services/api';
@@ -28,7 +29,7 @@
           // Subscribe to WebSocket messages
           websocketUnsubscribe = websocketService.subscribe((message: { type: string; data?: unknown }) => {
             if (message.type === 'sensor_data' && message.data) {
-              storeUtils.updateSensorData(message.data);
+              storeUtils.updateSensorData(message.data as Record<string, SensorData>);
             }
           });
 

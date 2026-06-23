@@ -8,10 +8,10 @@
   let imagesLoaded = $state(false);
 
   // Image sequence settings with defaults
-  const imageSequence = $derived((widget.gauge_settings.image_sequence as string[] | undefined) || []);
-  const animationSpeed = $derived((widget.gauge_settings.animation_speed as number | undefined) || 1); // frames per second
-  const minValue = $derived((widget.gauge_settings.min_value as number | undefined) ?? sensorData?.min_value ?? 0);
-  const maxValue = $derived((widget.gauge_settings.max_value as number | undefined) ?? sensorData?.max_value ?? 100);
+  const imageSequence = $derived(widget.gauge_settings.image_sequence ?? []);
+  const animationSpeed = $derived(widget.gauge_settings.animation_speed ?? 1); // frames per second
+  const minValue = $derived(widget.gauge_settings.min_value ?? sensorData?.min_value ?? 0);
+  const maxValue = $derived(widget.gauge_settings.max_value ?? sensorData?.max_value ?? 100);
 
   const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
   const unit = $derived(widget.custom_unit || sensorData?.unit || '');

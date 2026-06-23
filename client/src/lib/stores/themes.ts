@@ -4,7 +4,7 @@
  */
 
 import { writable, derived } from 'svelte/store';
-import type { ColorScheme, ThemePreset } from '$lib/types';
+import type { ColorScheme, ThemePreset, VisualSettings } from '$lib/types';
 
 // Define built-in color schemes
 export const colorSchemes: Record<string, ColorScheme> = {
@@ -288,14 +288,14 @@ export const themeUtils = {
   },
 
   // Import theme configuration
-  importTheme: (themeData: any): ThemePreset | null => {
+  importTheme: (themeData: Record<string, unknown>): ThemePreset | null => {
     try {
       const imported: ThemePreset = {
         id: `imported_${Date.now()}`,
-        name: themeData.name || 'Imported Theme',
-        description: themeData.description || 'Imported theme configuration',
-        color_scheme: themeData.color_scheme,
-        visual_settings: themeData.visual_settings
+        name: typeof themeData.name === 'string' ? themeData.name : 'Imported Theme',
+        description: typeof themeData.description === 'string' ? themeData.description : 'Imported theme configuration',
+        color_scheme: themeData.color_scheme as ColorScheme,
+        visual_settings: themeData.visual_settings as Partial<VisualSettings>
       };
 
       return imported;

@@ -1,31 +1,26 @@
 <script lang="ts">
-  import {
-    widgetArray,
-    editMode,
-    selectedWidgets,
-    visualSettings,
-    storeUtils
-  } from '$lib/stores';
-  import WidgetShell from './WidgetShell.svelte';
-  import type { Point } from '$lib/types';
+  import { editMode, selectedWidgets, visualSettings, storeUtils } from '$lib/stores';
+  import { widgetArray } from '$lib/stores/data/widgets';
+  import { uiUtils } from '$lib/stores/core/ui';
+  import { widgetUtils } from '$lib/stores/data/widgets';
+  import WidgetContainer from './widgets/core/WidgetContainer.svelte';
+  import type { Point, Bounds, WidgetConfig } from '$lib/types';
 
-  interface Rect {
-    x: number;
-    y: number;
+  interface SelectionRect {
+    left: number;
+    top: number;
     width: number;
     height: number;
   }
 
   let canvasElement: HTMLDivElement | undefined = $state();
-  let isDragging = $state(false);
   let isSelecting = $state(false);
-  let selectionStart: Point = $state({ x: 0, y: 0 });
-  let selectionEnd: Point = $state({ x: 0, y: 0 });
+  let selectionStart = $state<Point>({ x: 0, y: 0 });
+  let selectionEnd = $state<Point>({ x: 0, y: 0 });
 
   $effect(() => {
     if (!canvasElement) return;
 
-    // Handle canvas interactions
     const handleMouseDown = (event: MouseEvent) => {
       if ($editMode !== 'edit') return;
 
@@ -38,15 +33,11 @@
     };
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (isSelecting) {
-        updateSelection(event);
-      }
+      if (isSelecting) updateSelection(event);
     };
 
     const handleMouseUp = (event: MouseEvent) => {
-      if (isSelecting) {
-        finishSelection(event);
-      }
+      if (isSelecting) finishSelection(event);
     };
 
     canvasElement.addEventListener('mousedown', handleMouseDown);
@@ -64,90 +55,89 @@
     if (!canvasElement) return;
     isSelecting = true;
     const rect = canvasElement.getBoundingClientRect();
-    selectionStart = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-    };
+    selectionStart = { x: event.clientX - rect.left, y: event.clientY - rect.top };
     selectionEnd = { ...selectionStart };
 
-    // Clear current selection unless holding Shift
     if (!event.shiftKey) {
-      storeUtils.clearSelection();
+      uiUtils.clearSelection();
     }
   }
 
   function updateSelection(event: MouseEvent) {
     if (!isSelecting || !canvasElement) return;
-
     const rect = canvasElement.getBoundingClientRect();
-    selectionEnd = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
-    };
+    selectionEnd = { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }
 
   function finishSelection(event: MouseEvent) {
     if (!isSelecting) return;
-
     isSelecting = false;
 
-    // Calculate selection rectangle
-    const selRect: Rect = {
+    const selRect: Bounds = {
       x: Math.min(selectionStart.x, selectionEnd.x),
       y: Math.min(selectionStart.y, selectionEnd.y),
       width: Math.abs(selectionEnd.x - selectionStart.x),
       height: Math.abs(selectionEnd.y - selectionStart.y)
     };
 
-    // Only select if there's a meaningful selection area
     if (selRect.width > 5 && selRect.height > 5) {
-      // Find widgets that intersect with selection rectangle
       const selectedIds: string[] = [];
 
       $widgetArray.forEach(widget => {
-        const widgetRect: Rect = {
+        const widgetRect: Bounds = {
           x: widget.pos_x,
           y: widget.pos_y,
           width: widget.width,
           height: widget.height
         };
 
-        // Check if rectangles intersect
-        if (rectanglesIntersect(selRect, widgetRect)) {
+        if (boundsIntersect(selRect, widgetRect)) {
           selectedIds.push(widget.id);
         }
       });
 
       if (selectedIds.length > 0) {
         if (event.shiftKey) {
-          // Add to existing selection
-          const currentIds = $selectedWidgets.type === 'widget' ? $selectedWidgets.ids : [];
-          const newIds = [...new Set([...currentIds, ...selectedIds])];
-          selectedWidgets.set({ type: 'widget', ids: newIds });
+          selectedIds.forEach(id => uiUtils.addToSelection(id));
         } else {
-          // Replace selection
           selectedWidgets.set({ type: 'widget', ids: selectedIds });
         }
       }
     }
   }
 
-  function rectanglesIntersect(rect1: Rect, rect2: Rect): boolean {
-    return !(rect2.x > rect1.x + rect1.width ||
-             rect2.x + rect2.width < rect1.x ||
-             rect2.y > rect1.y + rect1.height ||
-             rect2.y + rect2.height < rect1.y);
+  function boundsIntersect(a: Bounds, b: Bounds): boolean {
+    return !(b.x > a.x + a.width ||
+             b.x + b.width < a.x ||
+             b.y > a.y + a.height ||
+             b.y + b.height < a.y);
   }
 
   function handleCanvasRightClick(event: MouseEvent) {
     if ($editMode !== 'edit') return;
-
     event.preventDefault();
-    storeUtils.showContextMenu(event.clientX, event.clientY, { type: 'canvas' });
+    uiUtils.showContextMenu(event.clientX, event.clientY, { type: 'canvas' });
   }
 
-  // Get selection rectangle for display
-  const selectionRect = $derived(isSelecting ? {
+  function handleWidgetUpdated(data: { id: string; updates: Partial<WidgetConfig> }) {
+    widgetUtils.updateWidget(data.id, data.updates);
+  }
+
+  function handleWidgetSelected(data: { id: string; multiSelect: boolean }) {
+    uiUtils.selectWidget(data.id, data.multiSelect);
+  }
+
+  function handleWidgetContextMenu(data: { id: string; x: number; y: number }) {
+    uiUtils.showContextMenu(data.x, data.y, { type: 'widget', id: data.id });
+  }
+
+  function handleWidgetDelete(data: { id: string }) {
+    widgetUtils.removeWidget(data.id);
+    storeUtils.clearSelection();
+  }
+
+  // Selection rect for display
+  const selectionRect = $derived<SelectionRect | null>(isSelecting ? {
     left: Math.min(selectionStart.x, selectionEnd.x),
     top: Math.min(selectionStart.y, selectionEnd.y),
     width: Math.abs(selectionEnd.x - selectionStart.x),
@@ -157,23 +147,32 @@
 
 <div
   bind:this={canvasElement}
-  class="w-full h-full relative overflow-auto bg-[var(--theme-background)] cursor-default"
+  class="dashboard-canvas w-full h-full relative overflow-auto bg-[var(--theme-background)] cursor-default"
   class:cursor-crosshair={$editMode === 'edit'}
+  role="application"
+  aria-label="Dashboard canvas"
+  tabindex="-1"
   oncontextmenu={handleCanvasRightClick}
   data-canvas-background
 >
   <!-- Canvas content area -->
-  <div class="relative min-w-full min-h-full" style="width: max(100%, 1920px); height: max(100%, 1080px);">
+  <div class="canvas-content relative min-w-full min-h-full" style="width: max(100%, 1920px); height: max(100%, 1080px);">
 
     <!-- Widgets -->
     {#each $widgetArray as widget (widget.id)}
-      <WidgetShell {widget} />
+      <WidgetContainer
+        {widget}
+        onwidgetUpdated={handleWidgetUpdated}
+        onwidgetSelected={handleWidgetSelected}
+        onwidgetContextMenu={handleWidgetContextMenu}
+        onwidgetDelete={handleWidgetDelete}
+      />
     {/each}
 
     <!-- Selection rectangle -->
     {#if selectionRect && $editMode === 'edit'}
       <div
-        class="absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20 pointer-events-none"
+        class="selection-rectangle absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20 pointer-events-none rounded"
         style="
           left: {selectionRect.left}px;
           top: {selectionRect.top}px;
@@ -186,7 +185,7 @@
     <!-- Grid overlay (dynamic size based on settings) -->
     {#if $editMode === 'edit' && $visualSettings.show_grid}
       <div
-        class="absolute inset-0 pointer-events-none grid-pattern opacity-30"
+        class="grid-overlay absolute inset-0 pointer-events-none opacity-30"
         style="--grid-size: {$visualSettings.grid_size}px"
       ></div>
     {/if}
@@ -194,8 +193,24 @@
 </div>
 
 <style>
-  .grid-pattern {
-    /* Use dots for smaller grids, lines for larger grids */
+  .dashboard-canvas {
+    position: relative;
+    contain: layout style;
+  }
+
+  .canvas-content {
+    position: relative;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(var(--theme-border-rgb), 0.15) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+
+  .selection-rectangle {
+    backdrop-filter: blur(1px);
+    animation: selection-pulse 1s ease-in-out infinite alternate;
+  }
+
+  .grid-overlay {
     background-image:
       linear-gradient(to right, var(--theme-border) 1px, transparent 1px),
       linear-gradient(to bottom, var(--theme-border) 1px, transparent 1px);
@@ -203,21 +218,29 @@
   }
 
   /* For very small grids, use dots instead of lines */
-  .grid-pattern[style*="--grid-size: 1px"],
-  .grid-pattern[style*="--grid-size: 2px"],
-  .grid-pattern[style*="--grid-size: 3px"] {
+  .grid-overlay[style*="--grid-size: 1px"],
+  .grid-overlay[style*="--grid-size: 2px"],
+  .grid-overlay[style*="--grid-size: 3px"],
+  .grid-overlay[style*="--grid-size: 4px"],
+  .grid-overlay[style*="--grid-size: 5px"] {
     background-image: radial-gradient(circle, var(--theme-border) 0.5px, transparent 0.5px);
   }
 
   /* Performance optimizations */
-  .grid-pattern {
+  .grid-overlay {
     will-change: background-size;
     contain: style layout;
   }
 
-  /* Optimize rendering for dragging operations */
-  .dragging .grid-pattern {
-    opacity: 0.15 !important;
-    transition: opacity 0.1s ease;
+  /* Smooth selection animation */
+  @keyframes selection-pulse {
+    0% {
+      border-color: #3b82f6;
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+    100% {
+      border-color: #60a5fa;
+      background-color: rgba(96, 165, 250, 0.15);
+    }
   }
 </style>

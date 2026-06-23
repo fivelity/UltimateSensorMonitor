@@ -16,8 +16,20 @@
   const currentSensorData = $derived($sensorData[widget.sensor_id] as SensorData | undefined);
   const sensorInfo = $derived($availableSensors.find(s => s.id === widget.sensor_id));
 
-  // Fallback to sensor info if current data is not available
-  const displayData = $derived(currentSensorData || sensorInfo);
+  // Use live sensor data; fall back to a stub built from static sensor info when no live data yet
+  const displayData = $derived<SensorData | undefined>(
+    currentSensorData ??
+    (sensorInfo
+      ? {
+          id: sensorInfo.id,
+          name: sensorInfo.name,
+          value: '--',
+          unit: sensorInfo.unit,
+          source: sensorInfo.source,
+          category: sensorInfo.category
+        }
+      : undefined)
+  );
 
   // Debug logging when configured
   $effect(() => {

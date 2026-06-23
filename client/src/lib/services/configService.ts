@@ -167,8 +167,9 @@ class ConfigService {
    */
   private setConfigValue(config: AppConfig, section: string, key: string, value: string): void {
     const camelCaseKey = this.toCamelCase(key);
-    
-    let parsedValue: any = value;
+
+    type ConfigValue = string | number | boolean;
+    let parsedValue: ConfigValue = value;
 
     // Convert string values to appropriate types
     if (value.toLowerCase() === 'true') {
@@ -179,43 +180,22 @@ class ConfigService {
       parsedValue = Number(value);
     }
 
+    // Generic helper to safely assign a parsed value into a typed section
+    function assign<T extends Record<string, ConfigValue>>(obj: T, k: string, v: ConfigValue): void {
+      if (k in obj) {
+        (obj as Record<string, ConfigValue>)[k] = v;
+      }
+    }
+
     // Set the value in the appropriate section
     switch (section) {
-      case 'data':
-        if (camelCaseKey in config.data) {
-          (config.data as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'ui':
-        if (camelCaseKey in config.ui) {
-          (config.ui as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'performance':
-        if (camelCaseKey in config.performance) {
-          (config.performance as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'debug':
-        if (camelCaseKey in config.debug) {
-          (config.debug as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'canvas':
-        if (camelCaseKey in config.canvas) {
-          (config.canvas as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'sensors':
-        if (camelCaseKey in config.sensors) {
-          (config.sensors as any)[camelCaseKey] = parsedValue;
-        }
-        break;
-      case 'widgets':
-        if (camelCaseKey in config.widgets) {
-          (config.widgets as any)[camelCaseKey] = parsedValue;
-        }
-        break;
+      case 'data':       assign(config.data,        camelCaseKey, parsedValue); break;
+      case 'ui':         assign(config.ui,           camelCaseKey, parsedValue); break;
+      case 'performance': assign(config.performance, camelCaseKey, parsedValue); break;
+      case 'debug':      assign(config.debug,        camelCaseKey, parsedValue); break;
+      case 'canvas':     assign(config.canvas,       camelCaseKey, parsedValue); break;
+      case 'sensors':    assign(config.sensors,      camelCaseKey, parsedValue); break;
+      case 'widgets':    assign(config.widgets,      camelCaseKey, parsedValue); break;
     }
   }
 

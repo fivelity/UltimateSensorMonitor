@@ -46,7 +46,8 @@ import { sensorData } from './sensorData.js';
 import { sensorSources } from './sensorSources.js';
 import { availableSensors } from './availableSensors.js';
 import { hardwareTree } from './hardwareTree.js';
-import type { SensorData, SensorInfo, SensorSourceFromAPI, SensorSource } from '$lib/types';
+import type { SensorData, SensorInfo, SensorSourceFromAPI, SensorSource, ApiHardwareNode } from '$lib/types';
+import type { HardwareNode } from './hardwareTree';
 
 // Comprehensive backward compatibility utilities
 export const storeUtils = {
@@ -111,8 +112,8 @@ export const storeUtils = {
     availableSensors.set(newAvailableSensors);
   },
   
-  updateHardwareTree: (tree: any[] | any) => {
+  updateHardwareTree: (tree: ApiHardwareNode[] | ApiHardwareNode | HardwareNode[] | HardwareNode) => {
     const treeArray = Array.isArray(tree) ? tree : (tree ? [tree] : []);
-    hardwareTree.set(treeArray);
+    hardwareTree.set(treeArray as HardwareNode[]);
   }
 }; 

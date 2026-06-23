@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SensorData, WidgetConfig } from "$lib/types";
   import * as d3 from "d3";
+  import { untrack } from "svelte";
 
   const {
     widget,
@@ -38,8 +39,11 @@
 
     const now = new Date();
     const cutoff = new Date(now.getTime() - timeRange * 1000);
+    // Avoid tracking dataHistory inside this update so the $effect that drives
+    // the interval does not become a dependency of its own state.
+    const previous = untrack(() => dataHistory);
     dataHistory = [
-      ...dataHistory.filter((d) => d.timestamp >= cutoff),
+      ...previous.filter((d) => d.timestamp >= cutoff),
       { timestamp: now, value: sensorData.value },
     ];
   }

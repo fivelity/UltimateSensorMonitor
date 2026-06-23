@@ -191,7 +191,7 @@
     <!-- Selection rectangle -->
     {#if selectionRect && $editMode === "edit"}
       <div
-        class="selection-rectangle absolute border-2 border-blue-500 bg-blue-200 bg-opacity-20 pointer-events-none rounded"
+        class="selection-rectangle absolute border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)]/20 pointer-events-none rounded"
         style="
           left: {selectionRect.left}px;
           top: {selectionRect.top}px;
@@ -261,12 +261,12 @@
   /* Smooth selection animation */
   @keyframes selection-pulse {
     0% {
-      border-color: #3b82f6;
-      background-color: rgba(59, 130, 246, 0.1);
+      border-color: var(--theme-primary);
+      background-color: rgba(var(--theme-primary-rgb), 0.1);
     }
     100% {
-      border-color: #60a5fa;
-      background-color: rgba(96, 165, 250, 0.15);
+      border-color: var(--theme-secondary);
+      background-color: rgba(var(--theme-primary-rgb), 0.15);
     }
   }
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { visualSettings, widgets } from '$lib/stores';
-  import type { WidgetConfig } from '$lib/types';
+  import { visualSettings, widgets } from "$lib/stores";
+  import type { WidgetConfig } from "$lib/types";
 
   interface Props {
     activeWidget: WidgetConfig | null;
@@ -10,10 +10,11 @@
   const { activeWidget, isDragging }: Props = $props();
 
   interface SnapGuide {
-    type: 'horizontal' | 'vertical';
+    type: "horizontal" | "vertical";
     position: number;
     widgets: string[];
     color: string;
+    colorRgb: string;
   }
 
   let snapGuides = $state<SnapGuide[]>([]);
@@ -31,12 +32,14 @@
     if (!activeWidget) return;
 
     const guides: SnapGuide[] = [];
-    const allWidgets = Object.values($widgets).filter(w => w.id !== activeWidget.id);
-    
+    const allWidgets = Object.values($widgets).filter(
+      (w) => w.id !== activeWidget.id,
+    );
+
     // Calculate horizontal guides (Y positions)
     const yPositions = new Map<number, string[]>();
-    
-    allWidgets.forEach(widget => {
+
+    allWidgets.forEach((widget) => {
       // Top edge
       addToPositionMap(yPositions, widget.pos_y, widget.id);
       // Bottom edge
@@ -47,8 +50,8 @@
 
     // Calculate vertical guides (X positions)
     const xPositions = new Map<number, string[]>();
-    
-    allWidgets.forEach(widget => {
+
+    allWidgets.forEach((widget) => {
       // Left edge
       addToPositionMap(xPositions, widget.pos_x, widget.id);
       // Right edge
@@ -59,28 +62,36 @@
 
     // Create horizontal guides
     yPositions.forEach((widgetIds, y) => {
-      if (isNearPosition(activeWidget.pos_y, y) || 
-          isNearPosition(activeWidget.pos_y + activeWidget.height, y) ||
-          isNearPosition(activeWidget.pos_y + activeWidget.height / 2, y)) {
+      if (
+        isNearPosition(activeWidget.pos_y, y) ||
+        isNearPosition(activeWidget.pos_y + activeWidget.height, y) ||
+        isNearPosition(activeWidget.pos_y + activeWidget.height / 2, y)
+      ) {
+        const { color, colorRgb } = getGuideColor(widgetIds.length);
         guides.push({
-          type: 'horizontal',
+          type: "horizontal",
           position: y,
           widgets: widgetIds,
-          color: getGuideColor(widgetIds.length)
+          color,
+          colorRgb,
         });
       }
     });
 
     // Create vertical guides
     xPositions.forEach((widgetIds, x) => {
-      if (isNearPosition(activeWidget.pos_x, x) || 
-          isNearPosition(activeWidget.pos_x + activeWidget.width, x) ||
-          isNearPosition(activeWidget.pos_x + activeWidget.width / 2, x)) {
+      if (
+        isNearPosition(activeWidget.pos_x, x) ||
+        isNearPosition(activeWidget.pos_x + activeWidget.width, x) ||
+        isNearPosition(activeWidget.pos_x + activeWidget.width / 2, x)
+      ) {
+        const { color, colorRgb } = getGuideColor(widgetIds.length);
         guides.push({
-          type: 'vertical',
+          type: "vertical",
           position: x,
           widgets: widgetIds,
-          color: getGuideColor(widgetIds.length)
+          color,
+          colorRgb,
         });
       }
     });
@@ -88,7 +99,11 @@
     snapGuides = guides;
   }
 
-  function addToPositionMap(map: Map<number, string[]>, position: number, widgetId: string) {
+  function addToPositionMap(
+    map: Map<number, string[]>,
+    position: number,
+    widgetId: string,
+  ) {
     const rounded = Math.round(position);
     if (!map.has(rounded)) {
       map.set(rounded, []);
@@ -100,14 +115,31 @@
     return Math.abs(pos1 - pos2) <= snapDistance;
   }
 
-  function getGuideColor(widgetCount: number): string {
-    if (widgetCount >= 3) return '#ef4444'; // Red for multiple alignments
-    if (widgetCount === 2) return '#f59e0b'; // Yellow for pair alignment
-    return '#3b82f6'; // Blue for single alignment
+  function getGuideColor(widgetCount: number): {
+    color: string;
+    colorRgb: string;
+  } {
+    if (widgetCount >= 3)
+      return {
+        color: "var(--theme-danger)",
+        colorRgb: "var(--theme-danger-rgb)",
+      };
+    if (widgetCount === 2)
+      return {
+        color: "var(--theme-warning)",
+        colorRgb: "var(--theme-warning-rgb)",
+      };
+    return {
+      color: "var(--theme-primary)",
+      colorRgb: "var(--theme-primary-rgb)",
+    };
   }
 
   // Snap calculation function that can be called from parent
-  export function calculateSnap(newX: number, newY: number): { x: number; y: number } {
+  export function calculateSnap(
+    newX: number,
+    newY: number,
+  ): { x: number; y: number } {
     if (!activeWidget || !$visualSettings.snap_to_grid) {
       return { x: newX, y: newY };
     }
@@ -115,14 +147,16 @@
     let snappedX = newX;
     let snappedY = newY;
 
-    const allWidgets = Object.values($widgets).filter(w => w.id !== activeWidget.id);
+    const allWidgets = Object.values($widgets).filter(
+      (w) => w.id !== activeWidget.id,
+    );
 
     // Check for X-axis snapping
     for (const widget of allWidgets) {
       const snapPoints = [
         widget.pos_x, // Left edge
         widget.pos_x + widget.width, // Right edge
-        widget.pos_x + widget.width / 2 // Center
+        widget.pos_x + widget.width / 2, // Center
       ];
 
       for (const snapPoint of snapPoints) {
@@ -146,7 +180,7 @@
       const snapPoints = [
         widget.pos_y, // Top edge
         widget.pos_y + widget.height, // Bottom edge
-        widget.pos_y + widget.height / 2 // Center
+        widget.pos_y + activeWidget.height / 2, // Center
       ];
 
       for (const snapPoint of snapPoints) {
@@ -172,22 +206,22 @@
 {#if snapGuides.length > 0 && isDragging}
   <div class="snap-guides">
     {#each snapGuides as guide}
-      {#if guide.type === 'horizontal'}
-        <div 
+      {#if guide.type === "horizontal"}
+        <div
           class="guide guide-horizontal"
           style="
             top: {guide.position}px;
             border-color: {guide.color};
-            box-shadow: 0 0 4px {guide.color}40;
+            box-shadow: 0 0 4px rgba({guide.colorRgb}, 0.25);
           "
         ></div>
       {:else}
-        <div 
+        <div
           class="guide guide-vertical"
           style="
             left: {guide.position}px;
             border-color: {guide.color};
-            box-shadow: 0 0 4px {guide.color}40;
+            box-shadow: 0 0 4px rgba({guide.colorRgb}, 0.25);
           "
         ></div>
       {/if}
@@ -243,7 +277,7 @@
 
   /* Visual feedback for different guide types */
   .guide:before {
-    content: '';
+    content: "";
     position: absolute;
     background: currentColor;
     border-radius: 2px;

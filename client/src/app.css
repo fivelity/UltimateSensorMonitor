@@ -93,70 +93,66 @@
   --materiality: 0.5;
   --information-density: 0.5;
   --animation-level: 0.5;
+  --font-family: "Inter", system-ui, sans-serif;
+  --theme-backdrop-blur: 0px;
+  --theme-elevation-opacity: 0.1;
 
   /* Micro-grid */
   --grid-size: 5px;
 
   /* Professional theme (default) */
   --theme-primary: #3b82f6;
+  --theme-primary-rgb: 59, 130, 246;
   --theme-secondary: #6366f1;
+  --theme-secondary-rgb: 99, 102, 241;
   --theme-accent: #8b5cf6;
-  --theme-background: #ffffff;
-  --theme-surface: #f8fafc;
+  --theme-accent-rgb: 139, 92, 246;
+  --theme-background: #f8fafc;
+  --theme-background-rgb: 248, 250, 252;
+  --theme-surface: #ffffff;
+  --theme-surface-rgb: 255, 255, 255;
+  --theme-surface-glass: rgba(255, 255, 255, 0.85);
   --theme-border: #e2e8f0;
+  --theme-border-rgb: 226, 232, 240;
   --theme-text: #1e293b;
+  --theme-text-rgb: 30, 41, 59;
   --theme-text-muted: #64748b;
-}
-
-.theme-gamer {
-  --theme-primary: #22c55e;
-  --theme-secondary: #10b981;
-  --theme-accent: #06b6d4;
-  --theme-background: #0f172a;
-  --theme-surface: #1e293b;
-  --theme-border: #334155;
-  --theme-text: #f1f5f9;
-  --theme-text-muted: #94a3b8;
-}
-
-.theme-minimal {
-  --theme-primary: #6b7280;
-  --theme-secondary: #9ca3af;
-  --theme-accent: #d1d5db;
-  --theme-background: #ffffff;
-  --theme-surface: #fafafa;
-  --theme-border: #f3f4f6;
-  --theme-text: #111827;
-  --theme-text-muted: #6b7280;
+  --theme-text-muted-rgb: 100, 116, 139;
+  --theme-danger: #ef4444;
+  --theme-danger-rgb: 239, 68, 68;
+  --theme-success: #22c55e;
+  --theme-success-rgb: 34, 197, 94;
+  --theme-warning: #f59e0b;
+  --theme-warning-rgb: 245, 158, 11;
 }
 
 /* ── Custom component styles ─────────────────── */
 .widget-shell {
-  background: rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.8));
+  background: rgba(var(--theme-surface-rgb), calc(0.1 + var(--materiality) * 0.8));
   backdrop-filter: blur(calc(2px + var(--materiality) * 8px));
-  border: 1px solid rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.2));
+  border: 1px solid rgba(var(--theme-border-rgb), calc(0.1 + var(--materiality) * 0.2));
   border-radius: calc(4px + var(--materiality) * 8px);
   transition: all 0.3s ease;
 }
 
 .widget-shell:hover {
-  background: rgba(255, 255, 255, calc(0.15 + var(--materiality) * 0.85));
+  background: rgba(var(--theme-surface-rgb), calc(0.15 + var(--materiality) * 0.85));
   transform: translateY(calc(-1px * var(--animation-level)));
   box-shadow: 0 calc(4px * (1 + var(--materiality)))
     calc(12px * (1 + var(--materiality)))
-    rgba(0, 0, 0, calc(0.1 + var(--materiality) * 0.1));
+    rgba(0, 0, 0, calc(var(--theme-elevation-opacity) + var(--materiality) * 0.1));
 }
 
 .glass-effect {
-  background: rgba(255, 255, 255, calc(0.05 + var(--materiality) * 0.15));
+  background: rgba(var(--theme-surface-rgb), calc(0.05 + var(--materiality) * 0.15));
   backdrop-filter: blur(calc(4px + var(--materiality) * 12px));
-  border: 1px solid rgba(255, 255, 255, calc(0.1 + var(--materiality) * 0.2));
+  border: 1px solid rgba(var(--theme-border-rgb), calc(0.1 + var(--materiality) * 0.2));
 }
 
 .micro-grid {
   background-image:
-    linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px);
+    linear-gradient(rgba(var(--theme-primary-rgb), 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--theme-primary-rgb), 0.1) 1px, transparent 1px);
   background-size: var(--grid-size) var(--grid-size);
 }
 
@@ -244,11 +240,12 @@
 .context-menu {
   position: fixed;
   z-index: 1000;
-  background: var(--theme-surface);
+  background: var(--theme-surface-glass);
   border: 1px solid var(--theme-border);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, var(--theme-elevation-opacity));
+  backdrop-filter: blur(var(--theme-backdrop-blur));
   min-width: 160px;
 }
 
@@ -261,11 +258,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--theme-text);
 }
 
 .context-menu-item:hover {
   background: var(--theme-primary);
-  color: white;
+  color: var(--theme-background);
 }
 
 .context-menu-separator {

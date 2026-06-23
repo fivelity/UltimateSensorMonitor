@@ -2,6 +2,7 @@
   import { availableSensors, sensorData } from "$lib/stores";
   import type { SensorData, WidgetConfig } from "$lib/types";
   import { logger } from "$lib/utils/logger";
+  import { AlertTriangle, BarChart3 } from "@lucide/svelte";
   // Import gauge components from existing location
   import GlassmorphicGauge from "$lib/components/gauges/GlassmorphicGauge.svelte";
   import GraphGauge from "$lib/components/gauges/GraphGauge.svelte";
@@ -66,7 +67,7 @@
       <!-- Fallback for unknown gauge types -->
       <div class="flex items-center justify-center h-full text-center p-4">
         <div class="text-[var(--theme-text-muted)]">
-          <div class="text-2xl mb-2">⚠️</div>
+          <AlertTriangle size={32} class="mx-auto mb-2 opacity-70" />
           <div class="text-sm">Unknown gauge type: {widget.gauge_type}</div>
         </div>
       </div>
@@ -75,7 +76,7 @@
     <!-- No data state -->
     <div class="flex items-center justify-center h-full text-center p-4">
       <div class="text-[var(--theme-text-muted)]">
-        <div class="text-2xl mb-2">📊</div>
+        <BarChart3 size={32} class="mx-auto mb-2 opacity-70" />
         <div class="text-sm">No sensor data</div>
         <div class="text-xs opacity-75">ID: {widget.sensor_id}</div>
       </div>

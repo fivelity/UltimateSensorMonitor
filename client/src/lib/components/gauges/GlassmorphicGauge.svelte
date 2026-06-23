@@ -1,46 +1,59 @@
 <script lang="ts">
-  import type { WidgetConfig, SensorData } from '$lib/types';
+  import { visualSettings } from "$lib/stores";
+  import type { SensorData, WidgetConfig } from "$lib/types";
 
-  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
+  const {
+    widget,
+    sensorData,
+  }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // Gauge settings with defaults
   const glow_intensity = $derived(widget.gauge_settings.glow_intensity || 0.5);
   const blur_level = $derived(widget.gauge_settings.blur_level || 0.3);
   const transparency = $derived(widget.gauge_settings.transparency || 0.8);
-  const gauge_style = $derived(widget.gauge_settings.style || 'radial'); // 'radial' | 'linear' | 'ring'
+  const gauge_style = $derived(widget.gauge_settings.style || "radial");
 
   // Data processing
-  const sensorName = $derived(widget.custom_label || sensorData?.name || 'Unknown Sensor');
-  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
-  const displayValue = $derived(sensorData?.value ?? '--');
-  const minValue = $derived(widget.gauge_settings.min_value || sensorData?.min_value || 0);
-  const maxValue = $derived(widget.gauge_settings.max_value || sensorData?.max_value || 100);
+  const sensorName = $derived(
+    widget.custom_label || sensorData?.name || "Unknown Sensor",
+  );
+  const unit = $derived(widget.custom_unit || sensorData?.unit || "");
+  const displayValue = $derived(sensorData?.value ?? "--");
+  const minValue = $derived(
+    widget.gauge_settings.min_value || sensorData?.min_value || 0,
+  );
+  const maxValue = $derived(
+    widget.gauge_settings.max_value || sensorData?.max_value || 100,
+  );
 
   // Calculate normalized value (0-1)
   const normalizedValue = $derived(
-    typeof displayValue === 'number'
-      ? Math.max(0, Math.min(1, (displayValue - minValue) / (maxValue - minValue)))
-      : 0
+    typeof displayValue === "number"
+      ? Math.max(
+          0,
+          Math.min(1, (displayValue - minValue) / (maxValue - minValue)),
+        )
+      : 0,
   );
 
   // Calculate percentage for display
   const percentageValue = $derived(Math.round(normalizedValue * 100));
 
-  // Dynamic styling based on value
-  const valueColor = $derived(getValueColor(normalizedValue));
-  const glowColor = $derived(getGlowColor(normalizedValue));
-
-  function getValueColor(value: number): string {
-    if (value < 0.3) return '#10b981'; // Green
-    if (value < 0.7) return '#f59e0b'; // Yellow
-    return '#ef4444'; // Red
-  }
-
-  function getGlowColor(value: number): string {
-    if (value < 0.3) return '16, 185, 129'; // Green RGB
-    if (value < 0.7) return '245, 158, 11'; // Yellow RGB
-    return '239, 68, 68'; // Red RGB
-  }
+  // Dynamic styling based on value — use theme semantic tokens
+  const valueColor = $derived(
+    normalizedValue < 0.3
+      ? "var(--theme-success)"
+      : normalizedValue < 0.7
+        ? "var(--theme-warning)"
+        : "var(--theme-danger)",
+  );
+  const glowColor = $derived(
+    normalizedValue < 0.3
+      ? "var(--theme-success-rgb)"
+      : normalizedValue < 0.7
+        ? "var(--theme-warning-rgb)"
+        : "var(--theme-danger-rgb)",
+  );
 
   // Animation values
   let animationProgress = $state(0);
@@ -62,7 +75,7 @@
 
   // Update animation when value changes
   $effect(() => {
-    if (typeof normalizedValue === 'number') {
+    if (typeof normalizedValue === "number") {
       const targetValue = normalizedValue;
       const currentValue = animationProgress;
       const diff = targetValue - currentValue;
@@ -82,16 +95,26 @@
       }
     }
   });
+
+  // Respond to global materiality/blur settings
+  const effectiveBlur = $derived(
+    $visualSettings.enable_blur_effects ? blur_level * 20 : 0,
+  );
+  const effectiveTransparency = $derived(
+    $visualSettings.materiality * transparency,
+  );
 </script>
 
-<div class="glassmorphic-gauge" class:show-blur={blur_level > 0}>
+<div class="glassmorphic-gauge" class:show-blur={effectiveBlur > 0}>
   <!-- Background Glass Effect -->
   <div
     class="glass-background"
     style="
-      backdrop-filter: blur({blur_level * 20}px);
-      background: rgba(255, 255, 255, {transparency * 0.1});
-      border: 1px solid rgba(255, 255, 255, {transparency * 0.2});
+      backdrop-filter: blur({effectiveBlur}px);
+      background: rgba(var(--theme-surface-rgb), {effectiveTransparency *
+      0.15});
+      border: 1px solid rgba(var(--theme-border-rgb), {effectiveTransparency *
+      0.4});
     "
   ></div>
 
@@ -104,7 +127,7 @@
 
   <!-- Main Gauge Content -->
   <div class="gauge-content">
-    {#if gauge_style === 'radial'}
+    {#if gauge_style === "radial"}
       <!-- Radial Gauge -->
       <div class="radial-gauge">
         <svg viewBox="0 0 120 120" class="gauge-svg">
@@ -114,7 +137,7 @@
             cy="60"
             r="45"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke="rgba(var(--theme-border-rgb), 0.3)"
             stroke-width="8"
             stroke-linecap="round"
           />
@@ -129,10 +152,11 @@
             stroke-width="8"
             stroke-linecap="round"
             stroke-dasharray="283"
-            stroke-dashoffset={283 - (283 * animationProgress)}
+            stroke-dashoffset={283 - 283 * animationProgress}
             transform="rotate(-90 60 60)"
             style="
-              filter: drop-shadow(0 0 {glow_intensity * 10}px rgba({glowColor}, {glow_intensity}));
+              filter: drop-shadow(0 0 {glow_intensity *
+              10}px rgba({glowColor}, {glow_intensity}));
               transition: stroke-dashoffset 0.3s ease;
             "
           />
@@ -143,7 +167,7 @@
             cy="60"
             r="25"
             fill="rgba({glowColor}, {glow_intensity * 0.1})"
-            style="filter: blur({blur_level * 5}px);"
+            style="filter: blur({effectiveBlur * 0.5}px);"
           />
         </svg>
 
@@ -159,8 +183,7 @@
           {/if}
         </div>
       </div>
-
-    {:else if gauge_style === 'linear'}
+    {:else if gauge_style === "linear"}
       <!-- Linear Gauge -->
       <div class="linear-gauge">
         <div class="linear-track">
@@ -169,7 +192,8 @@
             style="
               width: {animationProgress * 100}%;
               background: linear-gradient(90deg, {valueColor} 0%, rgba({glowColor}, 0.8) 100%);
-              box-shadow: 0 0 {glow_intensity * 15}px rgba({glowColor}, {glow_intensity});
+              box-shadow: 0 0 {glow_intensity *
+              15}px rgba({glowColor}, {glow_intensity});
             "
           ></div>
         </div>
@@ -183,8 +207,7 @@
           {/if}
         </div>
       </div>
-
-    {:else if gauge_style === 'ring'}
+    {:else if gauge_style === "ring"}
       <!-- Ring Gauge -->
       <div class="ring-gauge">
         <div class="ring-container">
@@ -196,10 +219,11 @@
                 from 0deg,
                 {valueColor} 0deg,
                 {valueColor} {animationProgress * 360}deg,
-                rgba(255, 255, 255, 0.1) {animationProgress * 360}deg,
-                rgba(255, 255, 255, 0.1) 360deg
+                rgba(var(--theme-border-rgb), 0.3) {animationProgress * 360}deg,
+                rgba(var(--theme-border-rgb), 0.3) 360deg
               );
-              filter: blur({blur_level * 2}px) drop-shadow(0 0 {glow_intensity * 8}px rgba({glowColor}, {glow_intensity}));
+              filter: blur({blur_level * 2}px) drop-shadow(0 0 {glow_intensity *
+              8}px rgba({glowColor}, {glow_intensity}));
             "
           ></div>
 
@@ -257,7 +281,7 @@
     display: flex;
     flex-direction: column;
     padding: 12px;
-    font-family: var(--theme-font-family, 'Inter');
+    font-family: var(--font-family, "Inter");
   }
 
   .glass-background {
@@ -272,9 +296,8 @@
     text-align: center;
     font-size: 0.75rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--theme-text);
     margin-bottom: 8px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
   .gauge-content {
@@ -315,7 +338,7 @@
 
   .unit-text {
     font-size: 0.6rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--theme-text-muted);
     font-weight: 500;
   }
 
@@ -330,7 +353,7 @@
   .linear-track {
     width: 100%;
     height: 12px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(var(--theme-border-rgb), 0.3);
     border-radius: 6px;
     overflow: hidden;
     position: relative;
@@ -339,7 +362,9 @@
   .linear-progress {
     height: 100%;
     border-radius: 6px;
-    transition: width 0.5s ease, box-shadow 0.3s ease;
+    transition:
+      width 0.5s ease,
+      box-shadow 0.3s ease;
     position: relative;
   }
 
@@ -373,7 +398,7 @@
     left: 20%;
     width: 60%;
     height: 60%;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(var(--theme-surface-rgb), 0.6);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -387,7 +412,7 @@
 
   .sensor-name {
     font-size: 0.5rem;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--theme-text-muted);
     margin-top: 2px;
   }
 
@@ -397,7 +422,7 @@
     justify-content: space-between;
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(var(--theme-border-rgb), 0.3);
   }
 
   .info-item {
@@ -409,13 +434,13 @@
 
   .info-label {
     font-size: 0.6rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--theme-text-muted);
     font-weight: 500;
   }
 
   .info-value {
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--theme-text);
     font-weight: 600;
   }
 
@@ -437,15 +462,34 @@
     animation: float 3s infinite ease-in-out;
   }
 
-  .particle:nth-child(1) { top: 20%; left: 10%; }
-  .particle:nth-child(2) { top: 40%; right: 15%; }
-  .particle:nth-child(3) { bottom: 30%; left: 20%; }
-  .particle:nth-child(4) { top: 60%; left: 50%; }
-  .particle:nth-child(5) { bottom: 20%; right: 25%; }
-  .particle:nth-child(6) { top: 15%; left: 70%; }
+  .particle:nth-child(1) {
+    top: 20%;
+    left: 10%;
+  }
+  .particle:nth-child(2) {
+    top: 40%;
+    right: 15%;
+  }
+  .particle:nth-child(3) {
+    bottom: 30%;
+    left: 20%;
+  }
+  .particle:nth-child(4) {
+    top: 60%;
+    left: 50%;
+  }
+  .particle:nth-child(5) {
+    bottom: 20%;
+    right: 25%;
+  }
+  .particle:nth-child(6) {
+    top: 15%;
+    left: 70%;
+  }
 
   @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0;
       transform: translateY(0px) scale(0.5);
     }

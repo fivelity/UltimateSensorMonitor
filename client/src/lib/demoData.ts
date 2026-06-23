@@ -4,10 +4,10 @@
  */
 
 import type {
-  WidgetConfig,
-  SensorData,
-  SensorSourceFromAPI,
-  StyleSettings,
+    SensorData,
+    SensorSourceFromAPI,
+    StyleSettings,
+    WidgetConfig,
 } from "./types";
 
 const mockSensors: Record<string, SensorData> = {
@@ -155,7 +155,6 @@ export const demoWidgets: WidgetConfig[] = [
     gauge_settings: {
       start_angle: 0,
       end_angle: 270,
-      color_primary: "#3b82f6",
       stroke_width: 8,
     },
     style_settings: noStyle,
@@ -173,7 +172,7 @@ export const demoWidgets: WidgetConfig[] = [
     is_locked: false,
     show_label: true,
     show_unit: true,
-    gauge_settings: { orientation: "horizontal", color_primary: "#10b981" },
+    gauge_settings: { orientation: "horizontal" },
     style_settings: noStyle,
   },
   {
@@ -207,7 +206,6 @@ export const demoWidgets: WidgetConfig[] = [
     show_unit: true,
     gauge_settings: {
       time_range: 60,
-      line_color: "#8b5cf6",
       fill_area: true,
       show_points: false,
     },
@@ -229,7 +227,6 @@ export const demoWidgets: WidgetConfig[] = [
     gauge_settings: {
       start_angle: 45,
       end_angle: 315,
-      color_primary: "#f59e0b",
       stroke_width: 6,
     },
     style_settings: noStyle,

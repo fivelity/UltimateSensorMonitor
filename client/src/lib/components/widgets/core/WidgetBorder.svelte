@@ -1,5 +1,11 @@
 <script lang="ts">
-  const { isSelected = false, isLocked = false, canEdit = false }: {
+  import { Lock } from "@lucide/svelte";
+
+  const {
+    isSelected = false,
+    isLocked = false,
+    canEdit = false,
+  }: {
     isSelected?: boolean;
     isLocked?: boolean;
     canEdit?: boolean;
@@ -8,22 +14,26 @@
   // Reactive classes for different states
   const borderClass = $derived(getBorderClass(isSelected, isLocked, canEdit));
 
-  function getBorderClass(selected: boolean, locked: boolean, editMode: boolean): string {
-    const classes = ['widget-border'];
+  function getBorderClass(
+    selected: boolean,
+    locked: boolean,
+    editMode: boolean,
+  ): string {
+    const classes = ["widget-border"];
 
     if (selected && editMode) {
-      classes.push('border-selected');
+      classes.push("border-selected");
     } else if (editMode) {
-      classes.push('border-edit-mode');
+      classes.push("border-edit-mode");
     } else {
-      classes.push('border-view-mode');
+      classes.push("border-view-mode");
     }
 
     if (locked) {
-      classes.push('border-locked');
+      classes.push("border-locked");
     }
 
-    return classes.join(' ');
+    return classes.join(" ");
   }
 </script>
 
@@ -36,9 +46,7 @@
   <!-- Lock indicator -->
   {#if isLocked}
     <div class="lock-indicator">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/>
-      </svg>
+      <Lock size={12} />
     </div>
   {/if}
 </div>
@@ -55,23 +63,23 @@
   /* View mode - subtle border */
   .border-view-mode {
     border: 1px solid transparent;
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(var(--theme-surface-rgb), 0.02);
   }
 
   .border-view-mode:hover {
     border-color: rgba(var(--theme-border-rgb), 0.3);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(var(--theme-surface-rgb), 0.05);
   }
 
   /* Edit mode - visible border */
   .border-edit-mode {
     border: 1px solid rgba(var(--theme-border-rgb), 0.4);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--theme-surface-rgb), 0.03);
   }
 
   .border-edit-mode:hover {
     border-color: rgba(var(--theme-border-rgb), 0.6);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(var(--theme-surface-rgb), 0.08);
   }
 
   /* Selected state */
@@ -90,11 +98,11 @@
   }
 
   .border-locked.border-selected {
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.05);
+    border-color: var(--theme-warning);
+    background: rgba(var(--theme-warning-rgb), 0.05);
     box-shadow:
-      0 0 0 1px rgba(245, 158, 11, 0.2),
-      0 2px 8px rgba(245, 158, 11, 0.15);
+      0 0 0 1px rgba(var(--theme-warning-rgb), 0.2),
+      0 2px 8px rgba(var(--theme-warning-rgb), 0.15);
   }
 
   /* Selection indicator */
@@ -117,8 +125,8 @@
     right: 4px;
     width: 20px;
     height: 20px;
-    background: rgba(245, 158, 11, 0.9);
-    color: white;
+    background: var(--theme-warning);
+    color: var(--theme-background);
     border-radius: 4px;
     display: flex;
     align-items: center;
@@ -130,7 +138,8 @@
 
   /* Animations */
   @keyframes pulse-selection {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.6;
       transform: scale(1);
     }
@@ -138,23 +147,6 @@
       opacity: 0.3;
       transform: scale(1.02);
     }
-  }
-
-  /* Dark mode adjustments */
-  :global(.dark) .border-view-mode {
-    background: rgba(255, 255, 255, 0.01);
-  }
-
-  :global(.dark) .border-view-mode:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  :global(.dark) .border-edit-mode {
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  :global(.dark) .border-edit-mode:hover {
-    background: rgba(255, 255, 255, 0.05);
   }
 
   /* Performance optimizations */

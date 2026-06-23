@@ -64,7 +64,7 @@
 
   function createWidget(sensor: SensorInfo, gaugeType: GaugeType = "text") {
     const widget: WidgetConfig = {
-      id: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `widget_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       sensor_id: sensor.id,
       gauge_type: gaugeType,
       pos_x: 100,
@@ -114,6 +114,22 @@
       }, 300);
     }
   }
+
+  const gaugeTypeOptions: {
+    type: GaugeType;
+    label: string;
+    token: "primary" | "secondary" | "accent" | "text-muted";
+  }[] = [
+    { type: "text", label: "Text", token: "primary" },
+    { type: "radial", label: "Radial", token: "secondary" },
+    { type: "linear", label: "Linear", token: "accent" },
+    { type: "graph", label: "Graph", token: "text-muted" },
+    { type: "image", label: "Image", token: "text-muted" },
+  ];
+
+  function tokenClass(token: string): string {
+    return `bg-[var(--theme-${token})] text-[var(--theme-background)] hover:opacity-90`;
+  }
 </script>
 
 <div class="sidebar-content h-full flex flex-col bg-[var(--theme-surface)]">
@@ -123,9 +139,10 @@
   >
     <h2 class="font-semibold text-[var(--theme-text)]">Sensors & Widgets</h2>
     <button
-      class="p-1 rounded hover:bg-[var(--theme-border)] transition-colors"
+      class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
       onclick={() => onclose?.()}
       title="Close panel"
+      aria-label="Close panel"
     >
       <X size={16} />
     </button>
@@ -141,7 +158,7 @@
       <div class="border-b border-[var(--theme-border)]">
         <!-- Category Header (Clickable) -->
         <button
-          class="w-full p-4 flex items-center gap-2 hover:bg-[var(--theme-background)] transition-colors text-left"
+          class="w-full p-4 flex items-center gap-2 hover:bg-[var(--theme-background)] transition-colors text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary)]"
           onclick={() => toggleCategory(category)}
         >
           <ChevronIcon
@@ -219,46 +236,18 @@
                 <div
                   class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap"
                 >
-                  <button
-                    class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-                    onclick={() => createWidget(sensor, "text")}
-                    title="Add as text widget"
-                  >
-                    <Plus size={12} />
-                    Text
-                  </button>
-                  <button
-                    class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-green-500 text-white hover:bg-green-600 transition-colors"
-                    onclick={() => createWidget(sensor, "radial")}
-                    title="Add as radial gauge"
-                  >
-                    <Plus size={12} />
-                    Radial
-                  </button>
-                  <button
-                    class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-purple-500 text-white hover:bg-purple-600 transition-colors"
-                    onclick={() => createWidget(sensor, "linear")}
-                    title="Add as linear gauge"
-                  >
-                    <Plus size={12} />
-                    Linear
-                  </button>
-                  <button
-                    class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-orange-500 text-white hover:bg-orange-600 transition-colors"
-                    onclick={() => createWidget(sensor, "graph")}
-                    title="Add as time graph"
-                  >
-                    <Plus size={12} />
-                    Graph
-                  </button>
-                  <button
-                    class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-pink-500 text-white hover:bg-pink-600 transition-colors"
-                    onclick={() => createWidget(sensor, "image")}
-                    title="Add as image sequence"
-                  >
-                    <Plus size={12} />
-                    Image
-                  </button>
+                  {#each gaugeTypeOptions as option}
+                    <button
+                      class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-1 focus:ring-offset-[var(--theme-background)] {tokenClass(
+                        option.token,
+                      )}"
+                      onclick={() => createWidget(sensor, option.type)}
+                      title="Add as {option.label} widget"
+                    >
+                      <Plus size={12} />
+                      {option.label}
+                    </button>
+                  {/each}
                 </div>
               </div>
             {/each}
@@ -280,8 +269,8 @@
 
 <style>
   :global(.sensor-item.highlight-sensor) {
-    border-color: #fbbf24;
-    background-color: #fefce8;
+    border-color: var(--theme-accent);
+    background-color: rgba(var(--theme-accent-rgb), 0.1);
     animation: highlight-pulse 2s ease-in-out;
   }
 
@@ -292,8 +281,8 @@
       background-color: var(--theme-background);
     }
     50% {
-      border-color: #fbbf24;
-      background-color: #fefce8;
+      border-color: var(--theme-accent);
+      background-color: rgba(var(--theme-accent-rgb), 0.15);
     }
   }
 </style>

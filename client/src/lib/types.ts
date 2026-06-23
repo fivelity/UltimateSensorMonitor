@@ -255,6 +255,9 @@ export interface ColorScheme {
     border: string;
     text: string;
     text_muted: string;
+    danger: string;
+    success: string;
+    warning: string;
   };
 }
 

@@ -196,7 +196,7 @@
         onclick={() => (showCreateDialog = true)}
         disabled={$selectedWidgets.type !== "widget" ||
           $selectedWidgets.ids.length < 2}
-        class="px-3 py-1 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+        class="px-3 py-1 text-sm bg-[var(--theme-success)] text-[var(--theme-background)] rounded-md hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--theme-success)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
         title="Create group from selected widgets"
       >
         <Plus size={14} />
@@ -205,7 +205,7 @@
 
       <button
         onclick={importGroup}
-        class="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center gap-1"
+        class="px-3 py-1 text-sm bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
         title="Import group from file"
       >
         <Upload size={14} />
@@ -218,7 +218,7 @@
   <div class="space-y-2">
     {#each Object.values($widgetGroups) as group (group.id)}
       <div
-        class="border border-[var(--theme-border)] rounded-lg p-3 bg-[var(--theme-surface)]"
+        class="border border-[var(--theme-border)] rounded-lg p-3 bg-[var(--theme-background)]"
       >
         <div class="flex items-start justify-between">
           <div class="flex-1">
@@ -240,32 +240,36 @@
           <div class="flex items-center gap-1">
             <button
               onclick={() => selectGroup(group)}
-              class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
+              class="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
               title="Select group widgets"
+              aria-label="Select group widgets"
             >
               <Users size={14} />
             </button>
 
             <button
               onclick={() => exportGroup(group)}
-              class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
+              class="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
               title="Export group"
+              aria-label="Export group"
             >
               <Download size={14} />
             </button>
 
             <button
               onclick={() => (editingGroup = group)}
-              class="p-1 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors"
+              class="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
               title="Edit group"
+              aria-label="Edit group"
             >
               <Edit2 size={14} />
             </button>
 
             <button
               onclick={() => ungroupWidgets(group.id)}
-              class="p-1 text-red-500 hover:text-red-600 transition-colors"
+              class="p-1 rounded text-[var(--theme-danger)] hover:opacity-80 hover:bg-[var(--theme-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-danger)]"
               title="Ungroup widgets"
+              aria-label="Ungroup widgets"
             >
               <Trash2 size={14} />
             </button>
@@ -283,10 +287,10 @@
 <!-- Create Group Dialog -->
 {#if showCreateDialog}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-[var(--theme-background)]/60 backdrop-blur-sm flex items-center justify-center z-50"
   >
     <div
-      class="bg-[var(--theme-surface)] rounded-lg p-6 w-96 border border-[var(--theme-border)]"
+      class="bg-[var(--theme-surface)] rounded-lg p-6 w-96 border border-[var(--theme-border)] shadow-lg"
     >
       <h3 class="text-lg font-semibold text-[var(--theme-text)] mb-4">
         Create Widget Group
@@ -305,7 +309,7 @@
             bind:value={newGroupName}
             type="text"
             placeholder="Enter group name"
-            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)]"
+            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           />
         </div>
 
@@ -321,7 +325,7 @@
             bind:value={newGroupDescription}
             placeholder="Enter group description"
             rows="3"
-            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)]"
+            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           ></textarea>
         </div>
 
@@ -333,13 +337,13 @@
       <div class="flex justify-end gap-2 mt-6">
         <button
           onclick={() => (showCreateDialog = false)}
-          class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)]"
+          class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         >
           Cancel
         </button>
         <button
           onclick={createGroupFromSelection}
-          class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+          class="px-4 py-2 bg-[var(--theme-success)] text-[var(--theme-background)] rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--theme-success)]"
         >
           Create Group
         </button>
@@ -351,10 +355,10 @@
 <!-- Edit Group Dialog -->
 {#if editingGroup}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-[var(--theme-background)]/60 backdrop-blur-sm flex items-center justify-center z-50"
   >
     <div
-      class="bg-[var(--theme-surface)] rounded-lg p-6 w-96 border border-[var(--theme-border)]"
+      class="bg-[var(--theme-surface)] rounded-lg p-6 w-96 border border-[var(--theme-border)] shadow-lg"
     >
       <h3 class="text-lg font-semibold text-[var(--theme-text)] mb-4">
         Edit Group
@@ -372,7 +376,7 @@
             id="wgm-edit-name"
             bind:value={editingGroup.name}
             type="text"
-            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)]"
+            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           />
         </div>
 
@@ -387,7 +391,7 @@
             id="wgm-edit-description"
             bind:value={editingGroup.description}
             rows="3"
-            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)]"
+            class="w-full px-3 py-2 border border-[var(--theme-border)] rounded-md bg-[var(--theme-background)] text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           ></textarea>
         </div>
       </div>
@@ -395,7 +399,7 @@
       <div class="flex justify-end gap-2 mt-6">
         <button
           onclick={() => (editingGroup = null)}
-          class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)]"
+          class="px-4 py-2 text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-background)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         >
           Cancel
         </button>
@@ -409,7 +413,7 @@
               editingGroup = null;
             }
           }}
-          class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         >
           Save Changes
         </button>

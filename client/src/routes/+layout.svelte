@@ -7,6 +7,7 @@
     sensorUtils,
     visualSettings,
   } from "$lib/stores";
+  import { themeUtils } from "$lib/stores/themes";
   import type { SensorData } from "$lib/types";
   import { logger } from "$lib/utils/logger";
   import type { Snippet } from "svelte";
@@ -60,38 +61,42 @@
 
       // Apply initial visual settings to CSS variables
       unsubscribeVisualSettings = visualSettings.subscribe((settings) => {
-        if (typeof document !== "undefined") {
-          const root = document.documentElement;
-          root.style.setProperty(
-            "--materiality",
-            settings.materiality.toString(),
-          );
-          root.style.setProperty(
-            "--information-density",
-            settings.information_density.toString(),
-          );
-          root.style.setProperty(
-            "--animation-level",
-            settings.animation_level.toString(),
-          );
-          root.style.setProperty("--grid-size", `${settings.grid_size}px`);
+        if (typeof document === "undefined") return;
 
-          // Apply theme class
-          document.body.className = document.body.className.replace(
-            /theme-\w+/,
-            "",
-          );
-          document.body.classList.add(`theme-${settings.color_scheme}`);
+        const root = document.documentElement;
+        root.style.setProperty(
+          "--materiality",
+          settings.materiality.toString(),
+        );
+        root.style.setProperty(
+          "--information-density",
+          settings.information_density.toString(),
+        );
+        root.style.setProperty(
+          "--animation-level",
+          settings.animation_level.toString(),
+        );
+        root.style.setProperty("--grid-size", `${settings.grid_size}px`);
 
-          // Apply font family
-          root.style.setProperty("--font-family", settings.font_family);
+        // Apply active theme tokens
+        const scheme = themeUtils.getColorScheme(settings.color_scheme);
+        themeUtils.applyTheme(scheme, settings);
 
-          // Apply reduced motion preference
-          if (settings.reduce_motion) {
-            document.body.classList.add("reduce-motion");
-          } else {
-            document.body.classList.remove("reduce-motion");
-          }
+        // Apply theme class
+        document.body.className = document.body.className.replace(
+          /theme-\w+/,
+          "",
+        );
+        document.body.classList.add(`theme-${settings.color_scheme}`);
+
+        // Apply font family
+        root.style.setProperty("--font-family", settings.font_family);
+
+        // Apply reduced motion preference
+        if (settings.reduce_motion) {
+          document.body.classList.add("reduce-motion");
+        } else {
+          document.body.classList.remove("reduce-motion");
         }
       });
     })();
@@ -117,8 +122,7 @@
     if (sourcesResponse.success && sourcesResponse.data) {
       sensorUtils.updateSensorSources(sourcesResponse.data.sources);
 
-      const lhmUpdatedSource =
-        sourcesResponse.data.sources["librehardware"];
+      const lhmUpdatedSource = sourcesResponse.data.sources["librehardware"];
       if (lhmUpdatedSource && lhmUpdatedSource.active) {
         const treeResponse = await apiService.getHardwareTree();
         logger.debug("[Layout] Hardware Tree Response:", treeResponse);

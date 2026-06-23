@@ -8,7 +8,21 @@
     widgetUtils,
   } from "$lib/stores";
   import type { ContextMenuState, Selection, WidgetConfig } from "$lib/types";
+  import {
+    ArrowDown,
+    ArrowUp,
+    Copy,
+    LayoutGrid,
+    Lock,
+    MousePointerClick,
+    Search,
+    Trash2,
+    Unlock,
+    X,
+  } from "@lucide/svelte";
   import { get } from "svelte/store";
+
+  type IconComponent = typeof MousePointerClick;
 
   interface Props {
     x: number;
@@ -20,7 +34,7 @@
   type MenuActionItem = {
     label: string;
     action: string;
-    icon?: string;
+    icon?: IconComponent;
     danger?: boolean;
   };
   type MenuDivider = { type: "divider" };
@@ -73,7 +87,7 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          selectedWidgetsState.ids.forEach((id) => {
+          selectedWidgetsState.ids.forEach((id: string) => {
             widgetUtils.updateWidget(id, { is_locked: true });
           });
         }
@@ -84,7 +98,7 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          selectedWidgetsState.ids.forEach((id) => {
+          selectedWidgetsState.ids.forEach((id: string) => {
             widgetUtils.updateWidget(id, { is_locked: false });
           });
         }
@@ -95,7 +109,7 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          selectedWidgetsState.ids.forEach((id) => {
+          selectedWidgetsState.ids.forEach((id: string) => {
             widgetUtils.removeWidget(id);
           });
           uiUtils.clearSelection();
@@ -107,12 +121,14 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          selectedWidgetsState.ids.forEach((id) => {
+          selectedWidgetsState.ids.forEach((id: string) => {
             const widget = widgetsMap[id];
             if (widget) {
               const newWidget = {
                 ...widget,
-                id: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                id: `widget_${Date.now()}_${Math.random()
+                  .toString(36)
+                  .substring(2, 9)}`,
                 pos_x: widget.pos_x + 20,
                 pos_y: widget.pos_y + 20,
               };
@@ -128,8 +144,10 @@
           selectedWidgetsState.ids.length > 0
         ) {
           const maxZ =
-            Math.max(...Object.values(widgetsMap).map((w) => w.z_index)) + 1;
-          selectedWidgetsState.ids.forEach((id) => {
+            Math.max(
+              ...Object.values(widgetsMap).map((w: WidgetConfig) => w.z_index),
+            ) + 1;
+          selectedWidgetsState.ids.forEach((id: string) => {
             widgetUtils.updateWidget(id, { z_index: maxZ });
           });
         }
@@ -141,8 +159,10 @@
           selectedWidgetsState.ids.length > 0
         ) {
           const minZ =
-            Math.min(...Object.values(widgetsMap).map((w) => w.z_index)) - 1;
-          selectedWidgetsState.ids.forEach((id) => {
+            Math.min(
+              ...Object.values(widgetsMap).map((w: WidgetConfig) => w.z_index),
+            ) - 1;
+          selectedWidgetsState.ids.forEach((id: string) => {
             widgetUtils.updateWidget(id, { z_index: minZ });
           });
         }
@@ -196,7 +216,7 @@
           // Find groups that contain any of the selected widgets
           const groupsToRemove = new Set<string>();
 
-          selectedWidgetsState.ids.forEach((widgetId) => {
+          selectedWidgetsState.ids.forEach((widgetId: string) => {
             const widget = widgetsMap[widgetId];
             if (widget?.group_id) {
               groupsToRemove.add(widget.group_id);
@@ -208,6 +228,10 @@
             widgetUtils.removeGroup(groupId);
           });
         }
+        break;
+
+      case "clear-selection":
+        uiUtils.clearSelection();
         break;
     }
 
@@ -239,7 +263,11 @@
           : 0;
 
       if (!isSelected) {
-        items.push({ label: "Select", action: "select", icon: "cursor-click" });
+        items.push({
+          label: "Select",
+          action: "select",
+          icon: MousePointerClick,
+        });
         items.push({ type: "divider" });
       }
 
@@ -249,7 +277,7 @@
           items.push({
             label: "Find in Sidebar",
             action: "find-in-sidebar",
-            icon: "search",
+            icon: Search,
           });
           items.push({ type: "divider" });
         }
@@ -257,12 +285,12 @@
         items.push({
           label: "Duplicate",
           action: "duplicate",
-          icon: "duplicate",
+          icon: Copy,
         });
         items.push({
           label: "Delete",
           action: "delete",
-          icon: "trash",
+          icon: Trash2,
           danger: true,
         });
         items.push({ type: "divider" });
@@ -276,27 +304,31 @@
         );
 
         if (hasUnlocked) {
-          items.push({ label: "Lock", action: "lock", icon: "lock-closed" });
+          items.push({ label: "Lock", action: "lock", icon: Lock });
         }
         if (hasLocked) {
-          items.push({ label: "Unlock", action: "unlock", icon: "lock-open" });
+          items.push({ label: "Unlock", action: "unlock", icon: Unlock });
         }
 
         items.push({ type: "divider" });
         items.push({
           label: "Bring to Front",
           action: "bring-to-front",
-          icon: "arrow-up",
+          icon: ArrowUp,
         });
         items.push({
           label: "Send to Back",
           action: "send-to-back",
-          icon: "arrow-down",
+          icon: ArrowDown,
         });
 
         if (selectedCount > 1) {
           items.push({ type: "divider" });
-          items.push({ label: "Group", action: "group", icon: "collection" });
+          items.push({
+            label: "Group",
+            action: "group",
+            icon: LayoutGrid,
+          });
         }
       }
     } else if (target?.type === "canvas") {
@@ -310,41 +342,19 @@
         items.push({
           label: "Clear Selection",
           action: "clear-selection",
-          icon: "x",
+          icon: X,
         });
       }
     }
 
     return items;
   }
-
-  function getIcon(iconName: string): string {
-    const icons: Record<string, string> = {
-      "cursor-click":
-        "M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286.592zm-7.269-7.31l-1.358 5.072m0 0l2.51-2.224-.569 9.47L3.5 12.68l1.273-.318z",
-      search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
-      duplicate:
-        "M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z",
-      trash:
-        "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
-      "lock-closed":
-        "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
-      "lock-open":
-        "M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z",
-      "arrow-up": "M5 15l7-7 7 7",
-      "arrow-down": "M19 9l-7 7-7-7",
-      collection:
-        "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10",
-      x: "M6 18L18 6M6 6l12 12",
-    };
-    return icons[iconName] || "";
-  }
 </script>
 
 <!-- Menu positioned absolutely -->
 <div
   bind:this={menuElement}
-  class="context-menu fixed z-50 bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-lg shadow-lg py-1 min-w-48"
+  class="context-menu fixed z-50 bg-[var(--theme-surface-glass)] backdrop-blur-[var(--theme-backdrop-blur)] border border-[var(--theme-border)] rounded-lg shadow-lg py-1 min-w-48"
   style="left: {adjustedX}px; top: {adjustedY}px;"
   role="menu"
   tabindex="-1"
@@ -356,25 +366,16 @@
       <div class="h-px bg-[var(--theme-border)] my-1"></div>
     {:else}
       {@const action = asAction(item)}
+      {@const IconComponent = action.icon}
       <button
-        class="w-full px-3 py-2 text-left text-sm hover:bg-[var(--theme-background)] transition-colors flex items-center gap-2"
-        class:text-red-600={action.danger}
+        class="w-full px-3 py-2 text-left text-sm hover:bg-[var(--theme-background)] transition-colors flex items-center gap-2 focus:outline-none focus:bg-[var(--theme-background)]"
+        class:text-[var(--theme-danger)]={action.danger}
         class:text-[var(--theme-text)]={!action.danger}
         onclick={() => handleAction(action.action)}
       >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d={getIcon(action.icon ?? "")}
-          />
-        </svg>
+        {#if IconComponent}
+          <IconComponent size={16} class="opacity-70" />
+        {/if}
         {action.label}
       </button>
     {/if}
@@ -386,3 +387,11 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .context-menu {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, var(--theme-elevation-opacity)),
+      0 2px 4px -1px rgba(0, 0, 0, var(--theme-elevation-opacity));
+  }
+</style>

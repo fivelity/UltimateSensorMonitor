@@ -21,6 +21,7 @@
   import { widgetUtils } from "$lib/stores/data/widgets";
   import type { GaugeSettings, GaugeType, WidgetConfig } from "$lib/types";
   import { logger } from "$lib/utils/logger";
+  import { BarChart2, RefreshCw } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let showLeftSidebar = $state(false);
@@ -38,12 +39,13 @@
 
     // Safety timeout: ensure the loading screen never gets stuck indefinitely,
     // even if an API call hangs or an unexpected error occurs.
+    // Set to 60s to match the sensor API timeout rather than firing early.
     const safetyTimeout = setTimeout(() => {
       if (!cancelled && !hasInitialized && !initializationError) {
-        logger.warn("[App] Initialization timed out after 30s, showing app");
+        logger.warn("[App] Initialization timed out after 60s, showing app");
         hasInitialized = true;
       }
-    }, 30000);
+    }, 60000);
 
     (async () => {
       try {
@@ -265,17 +267,15 @@
         return {
           start_angle: 0,
           end_angle: 270,
-          color_primary: "#ef4444",
           stroke_width: 8,
         };
       case "usage":
       case "load":
-        return { orientation: "horizontal", color_primary: "#10b981" };
+        return { orientation: "horizontal" };
       case "fan":
         return {
           start_angle: 45,
           end_angle: 315,
-          color_primary: "#f59e0b",
           stroke_width: 6,
         };
       default:
@@ -353,14 +353,19 @@
 <svelte:document onclick={handleDocumentClick} />
 
 {#if initializationError}
-  <div class="flex items-center justify-center h-screen bg-red-50">
+  <div
+    class="flex items-center justify-center h-screen bg-[var(--theme-background)]"
+  >
     <div class="text-center">
-      <h1 class="text-2xl font-bold text-red-800 mb-4">Initialization Error</h1>
-      <p class="text-red-600 mb-4">{initializationError}</p>
+      <h1 class="text-2xl font-bold text-[var(--theme-danger)] mb-4">
+        Initialization Error
+      </h1>
+      <p class="text-[var(--theme-danger)] mb-4">{initializationError}</p>
       <button
-        class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        class="px-4 py-2 bg-[var(--theme-danger)] text-[var(--theme-background)] rounded hover:opacity-80 flex items-center gap-2 mx-auto"
         onclick={() => window.location.reload()}
       >
+        <RefreshCw size={16} />
         Reload Application
       </button>
     </div>
@@ -412,8 +417,10 @@
         {#if $widgetArray.length === 0 && hasInitialized}
           <div class="absolute inset-0 flex items-center justify-center">
             <div class="text-center text-[var(--theme-text-muted)]">
-              <div class="text-6xl mb-4">📊</div>
-              <h2 class="text-xl font-semibold mb-2">No Widgets Yet</h2>
+              <BarChart2 size={64} class="mx-auto mb-4 opacity-50" />
+              <h2 class="text-xl font-semibold mb-2 text-[var(--theme-text)]">
+                No Widgets Yet
+              </h2>
               <p class="mb-4">
                 {#if config?.data.useDemoData}
                   Demo mode is enabled but no demo widgets were loaded.
@@ -426,14 +433,14 @@
               <div class="flex gap-2 justify-center">
                 {#if !showLeftSidebar}
                   <button
-                    class="px-4 py-2 bg-[var(--theme-primary)] text-white rounded hover:opacity-80"
+                    class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded hover:opacity-80"
                     onclick={toggleLeftSidebar}
                   >
                     Open Sensor Panel
                   </button>
                 {/if}
                 <button
-                  class="px-4 py-2 border border-[var(--theme-border)] rounded hover:bg-[var(--theme-surface)]"
+                  class="px-4 py-2 border border-[var(--theme-border)] rounded hover:bg-[var(--theme-surface)] text-[var(--theme-text)]"
                   onclick={() => editMode.set("edit")}
                 >
                   Enter Edit Mode

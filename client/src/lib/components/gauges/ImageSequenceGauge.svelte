@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SensorData, WidgetConfig } from "$lib/types";
   import { logger } from "$lib/utils/logger";
+  import { ImagePlus, Loader2, Settings2 } from "@lucide/svelte";
 
   const {
     widget,
@@ -113,23 +114,11 @@
       <!-- Upload prompt -->
       <div class="upload-prompt text-center p-4">
         <div class="text-[var(--theme-text-muted)] mb-2">
-          <svg
-            class="w-8 h-8 mx-auto mb-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
+          <ImagePlus size={32} class="mx-auto mb-2" />
           No image sequence
         </div>
         <label
-          class="btn-upload cursor-pointer inline-block px-3 py-1 bg-[var(--theme-primary)] text-white rounded text-xs hover:opacity-80"
+          class="cursor-pointer inline-block px-3 py-1 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded text-xs hover:opacity-80 transition-opacity focus-within:ring-2 focus-within:ring-[var(--theme-primary)]"
         >
           Upload Images
           <input
@@ -144,19 +133,7 @@
     {:else if !imagesLoaded}
       <!-- Loading indicator -->
       <div class="text-center text-[var(--theme-text-muted)]">
-        <svg
-          class="w-6 h-6 mx-auto mb-2 animate-spin"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
+        <Loader2 size={24} class="mx-auto mb-2 animate-spin" />
         <div class="text-xs">Loading images...</div>
       </div>
     {:else if images[currentImageIndex]}
@@ -169,7 +146,9 @@
 
       <!-- Progress indicator -->
       <div class="absolute bottom-1 left-1 right-1">
-        <div class="bg-black bg-opacity-30 rounded-full h-1 overflow-hidden">
+        <div
+          class="bg-[var(--theme-text-muted)]/30 rounded-full h-1 overflow-hidden"
+        >
           <div
             class="h-full bg-[var(--theme-primary)] transition-all duration-300"
             style="width: {((currentImageIndex + 1) / imageSequence.length) *
@@ -200,21 +179,9 @@
   {#if imageSequence.length > 0}
     <div class="absolute top-1 right-1">
       <label
-        class="btn-settings cursor-pointer p-1 bg-black bg-opacity-30 rounded text-white hover:bg-opacity-50 transition-all"
+        class="cursor-pointer p-1 bg-[var(--theme-surface)]/60 rounded text-[var(--theme-text)] hover:bg-[var(--theme-surface)] transition-all border border-[var(--theme-border)] focus-within:ring-2 focus-within:ring-[var(--theme-primary)]"
       >
-        <svg
-          class="w-3 h-3"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-          />
-        </svg>
+        <Settings2 size={12} />
         <input
           type="file"
           multiple

@@ -10,6 +10,7 @@
     SensorData,
     WidgetConfig,
   } from "$lib/types";
+  import { FileText, Layers } from "@lucide/svelte";
 
   const gaugeTypes: { value: GaugeType; label: string; description: string }[] =
     [
@@ -79,36 +80,12 @@
 <div class="p-4 space-y-6">
   {#if !selectedWidget}
     <div class="text-center text-[var(--theme-text-muted)] py-8">
-      <svg
-        class="w-12 h-12 mx-auto mb-3 opacity-50"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-        />
-      </svg>
+      <FileText size={48} class="mx-auto mb-3 opacity-50" />
       <p>Select a widget to configure its properties</p>
     </div>
   {:else if isMultipleSelection}
     <div class="text-center text-[var(--theme-text-muted)] py-8">
-      <svg
-        class="w-12 h-12 mx-auto mb-3 opacity-50"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-        />
-      </svg>
+      <Layers size={48} class="mx-auto mb-3 opacity-50" />
       <p>Multiple widgets selected</p>
       <p class="text-sm mt-1">Select a single widget to edit its properties</p>
     </div>
@@ -131,7 +108,7 @@
         </label>
         <select
           id="wi-sensor-source"
-          class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           value={selectedWidget.sensor_id}
           onchange={(e) => updateWidget({ sensor_id: e.currentTarget.value })}
         >
@@ -151,7 +128,7 @@
         </label>
         <select
           id="wi-gauge-type"
-          class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
           value={selectedWidget.gauge_type}
           onchange={(e) => updateGaugeType(e.currentTarget.value)}
         >
@@ -182,7 +159,7 @@
         <input
           id="wi-show-label"
           type="checkbox"
-          class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
+          class="rounded border-[var(--theme-border)] text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]"
           checked={selectedWidget.show_label}
           onchange={(e) =>
             updateWidget({ show_label: e.currentTarget.checked })}
@@ -201,7 +178,7 @@
           <input
             id="wi-custom-label"
             type="text"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             placeholder="Leave empty to use sensor name"
             value={selectedWidget.custom_label || ""}
             oninput={(e) =>
@@ -220,7 +197,7 @@
         <input
           id="wi-show-unit"
           type="checkbox"
-          class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
+          class="rounded border-[var(--theme-border)] text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]"
           checked={selectedWidget.show_unit}
           onchange={(e) => updateWidget({ show_unit: e.currentTarget.checked })}
         />
@@ -238,7 +215,7 @@
           <input
             id="wi-custom-unit"
             type="text"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             placeholder="Leave empty to use sensor unit"
             value={selectedWidget.custom_unit || ""}
             oninput={(e) =>
@@ -266,7 +243,7 @@
           <input
             id="wi-pos-x"
             type="number"
-            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
+            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.pos_x}
             oninput={(e) =>
               updateWidget({ pos_x: parseInt(e.currentTarget.value) || 0 })}
@@ -281,7 +258,7 @@
           <input
             id="wi-pos-y"
             type="number"
-            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
+            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.pos_y}
             oninput={(e) =>
               updateWidget({ pos_y: parseInt(e.currentTarget.value) || 0 })}
@@ -296,7 +273,7 @@
           <input
             id="wi-width"
             type="number"
-            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
+            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.width}
             oninput={(e) =>
               updateWidget({ width: parseInt(e.currentTarget.value) || 100 })}
@@ -311,7 +288,7 @@
           <input
             id="wi-height"
             type="number"
-            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)]"
+            class="w-full px-2 py-1 text-sm bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.height}
             oninput={(e) =>
               updateWidget({ height: parseInt(e.currentTarget.value) || 100 })}
@@ -335,7 +312,7 @@
         <input
           id="wi-lock-widget"
           type="checkbox"
-          class="rounded border-[var(--theme-border)] text-blue-600 focus:ring-blue-500"
+          class="rounded border-[var(--theme-border)] text-[var(--theme-primary)] focus:ring-[var(--theme-primary)]"
           checked={selectedWidget.is_locked}
           onchange={(e) => updateWidget({ is_locked: e.currentTarget.checked })}
         />
@@ -365,7 +342,7 @@
             type="number"
             min="0"
             max="360"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
+            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.gauge_settings.start_angle || 0}
             oninput={(e) =>
               updateGaugeSettings(
@@ -386,7 +363,7 @@
             type="number"
             min="0"
             max="360"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
+            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.gauge_settings.end_angle || 270}
             oninput={(e) =>
               updateGaugeSettings(
@@ -412,7 +389,7 @@
           >
           <select
             id="wi-orientation"
-            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)]"
+            class="w-full px-3 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent"
             value={selectedWidget.gauge_settings.orientation || "horizontal"}
             onchange={(e) =>
               updateGaugeSettings(

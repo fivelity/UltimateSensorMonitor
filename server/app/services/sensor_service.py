@@ -36,11 +36,15 @@ class SensorService:
 
     async def get_available_sensors(self) -> SensorsResponse:
         """Return metadata for all available sensors from each source."""
+        start_time = datetime.now()
+        logger.info(f"get_available_sensors called for {len(self._sources)} source(s)")
         result: dict[str, SensorSourceResponse] = {}
 
         for source_id, source_name, sensor in self._sources:
             try:
+                logger.info(f"Checking availability for source: {source_name}")
                 available = await sensor.is_available()
+                logger.info(f"Source {source_name} availability: {available}")
                 if not available:
                     result[source_id] = SensorSourceResponse(
                         id=source_id,
@@ -69,6 +73,8 @@ class SensorService:
                     error_message=f"Error getting sensors: {e}",
                 )
 
+        elapsed = (datetime.now() - start_time).total_seconds()
+        logger.info(f"get_available_sensors completed in {elapsed:.3f}s")
         return SensorsResponse(sources=result)
 
     async def get_current_data(self) -> SensorDataResponse:

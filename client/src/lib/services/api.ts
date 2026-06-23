@@ -47,6 +47,7 @@ class ApiService {
     options: RequestInit,
     timeoutMs: number,
   ): Promise<ApiResponse<T>> {
+    logger.debug(`API request: ${endpoint} (timeout: ${timeoutMs}ms)`);
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -85,9 +86,10 @@ class ApiService {
   async getSensors(): Promise<
     ApiResponse<{ sources: Record<string, SensorSourceFromAPI> }>
   > {
-    // Use a longer timeout: the first call triggers hardware initialization
-    // (LibreHardwareMonitor OpenComputer) which can take 15+ seconds.
-    return this.request("/sensors", {}, 30000);
+    // Use a longer timeout: the first call may arrive while the backend is
+    // still initializing LibreHardwareMonitor (OpenComputer), which can take
+    // 15+ seconds on some systems.
+    return this.request("/sensors", {}, 60000);
   }
 
   async getCurrentSensorData(): Promise<

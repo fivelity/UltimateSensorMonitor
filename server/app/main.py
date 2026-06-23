@@ -150,6 +150,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 )
             )
 
+    # Yield briefly so the background initialization tasks can start before
+    # the server begins accepting requests. This ensures the connection lock
+    # is acquired first, so API calls see "not available" instead of racing
+    # to initialize the sensor themselves.
+    if init_tasks:
+        logger.info(
+            f"Yielding to start {len(init_tasks)} background initialization task(s)"
+        )
+        await asyncio.sleep(0)
+        logger.info("Background initialization tasks should now be running")
+
     broadcast_task = asyncio.create_task(_broadcast_sensor_data(sensor_service))
     cleanup_task = asyncio.create_task(_websocket_cleanup())
 
@@ -183,8 +194,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if sensor is None:
             continue
         try:
-            if hasattr(sensor, "close"):
-                sensor.close()
+            close_method = getattr(sensor, "close", None)
+            if close_method is not None:
+                close_result = close_method()
+                if asyncio.iscoroutine(close_result):
+                    await close_result
         except Exception as e:
             logger.error(f"Error during sensor cleanup: {e}")
 

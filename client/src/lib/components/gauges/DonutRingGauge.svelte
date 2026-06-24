@@ -1,66 +1,103 @@
 <script lang="ts">
-  import { arc as d3Arc } from 'd3-shape';
-  import { tweened } from 'svelte/motion';
-  import { cubicOut } from 'svelte/easing';
-  import type { WidgetConfig, SensorData } from '$lib/types';
+  import type { SensorData, WidgetConfig } from "$lib/types";
+  import { arc as d3Arc } from "d3-shape";
+  import { cubicOut } from "svelte/easing";
+  import { tweened } from "svelte/motion";
 
-  const { widget, sensorData }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
+  const {
+    widget,
+    sensorData,
+  }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // ── Sensor values ──────────────────────────────────────────────────────────
-  const value = $derived(typeof sensorData?.value === 'number' ? sensorData.value : 0);
-  const minValue = $derived(widget.gauge_settings?.min_value ?? sensorData?.min_value ?? 0);
-  const maxValue = $derived(widget.gauge_settings?.max_value ?? sensorData?.max_value ?? 100);
+  const value = $derived(
+    typeof sensorData?.value === "number" ? sensorData.value : 0,
+  );
+  const minValue = $derived(
+    widget.gauge_settings?.min_value ?? sensorData?.min_value ?? 0,
+  );
+  const maxValue = $derived(
+    widget.gauge_settings?.max_value ?? sensorData?.max_value ?? 100,
+  );
   const percentage = $derived(
     maxValue !== minValue
       ? Math.min(1, Math.max(0, (value - minValue) / (maxValue - minValue)))
-      : 0
+      : 0,
   );
 
   // ── Settings ───────────────────────────────────────────────────────────────
   const startAngleDeg = $derived(widget.gauge_settings?.start_angle ?? -135);
   const endAngleDeg = $derived(widget.gauge_settings?.end_angle ?? 135);
-  const ringThicknessPct = $derived(widget.gauge_settings?.ring_thickness ?? 0.12); // fraction of radius
-  const glowColor = $derived(widget.gauge_settings?.glow_color ?? widget.gauge_settings?.color_primary ?? 'var(--theme-primary)');
+  const ringThicknessPct = $derived(
+    widget.gauge_settings?.ring_thickness ?? 0.12,
+  ); // fraction of radius
+  const glowColor = $derived(
+    widget.gauge_settings?.glow_color ??
+      widget.gauge_settings?.color_primary ??
+      "var(--theme-primary)",
+  );
   const useGradient = $derived(widget.gauge_settings?.use_gradient ?? false);
-  const gradientEndColor = $derived(widget.gauge_settings?.gradient_end_color ?? 'var(--theme-danger)');
-  const primaryColor = $derived(widget.gauge_settings?.color_primary ?? 'var(--theme-primary)');
+  const gradientEndColor = $derived(
+    widget.gauge_settings?.gradient_end_color ?? "var(--theme-danger)",
+  );
+  const primaryColor = $derived(
+    widget.gauge_settings?.color_primary ?? "var(--theme-primary)",
+  );
   const cornerRad = $derived(widget.gauge_settings?.corner_radius ?? 4);
 
   // ── Animated progress ──────────────────────────────────────────────────────
   const animPct = tweened(0, { duration: 750, easing: cubicOut });
-  $effect(() => { animPct.set(percentage); });
+  $effect(() => {
+    animPct.set(percentage);
+  });
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   const size = $derived(Math.min(widget.width - 24, widget.height - 24));
   const cx = $derived(size / 2);
   const cy = $derived(size / 2);
-  const maxR = $derived((size / 2) - 6);
+  const maxR = $derived(size / 2 - 6);
   const ringThickness = $derived(Math.max(6, maxR * ringThicknessPct));
   const outerR = $derived(maxR);
   const innerR = $derived(maxR - ringThickness);
 
-  function toRad(deg: number) { return deg * (Math.PI / 180); }
+  function toRad(deg: number) {
+    return deg * (Math.PI / 180);
+  }
 
   const totalSweep = $derived(endAngleDeg - startAngleDeg);
 
   // D3 arc generator helper
-  function makeArc(startDeg: number, endDeg: number, iR: number, oR: number, cR = 0): string {
+  function makeArc(
+    startDeg: number,
+    endDeg: number,
+    iR: number,
+    oR: number,
+    cR = 0,
+  ): string {
     const gen = d3Arc();
-    return gen({
-      innerRadius: iR,
-      outerRadius: oR,
-      startAngle: toRad(startDeg),
-      endAngle: toRad(endDeg),
-      padAngle: 0,
-      cornerRadius: cR,
-    } as Parameters<typeof gen>[0]) ?? '';
+    return (
+      gen({
+        innerRadius: iR,
+        outerRadius: oR,
+        startAngle: toRad(startDeg),
+        endAngle: toRad(endDeg),
+        padAngle: 0,
+        cornerRadius: cR,
+      } as Parameters<typeof gen>[0]) ?? ""
+    );
   }
 
   // Track arc (full sweep, background)
-  const trackArc = $derived(makeArc(startAngleDeg, endAngleDeg, innerR, outerR));
+  const trackArc = $derived(
+    makeArc(startAngleDeg, endAngleDeg, innerR, outerR),
+  );
   // Progress arc (animated)
   const progressEndDeg = $derived(startAngleDeg + $animPct * totalSweep);
-  const progressArc = $derived($animPct > 0.005 ? makeArc(startAngleDeg, progressEndDeg, innerR, outerR, cornerRad) : '');
+  const progressArc = $derived(
+    $animPct > 0.005
+      ? makeArc(startAngleDeg, progressEndDeg, innerR, outerR, cornerRad)
+      : "",
+  );
 
   // End-cap tick for value pointer
   function arcEndPoint(deg: number, r: number) {
@@ -68,7 +105,6 @@
     return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
   }
   const progressTipOuter = $derived(arcEndPoint(progressEndDeg, outerR));
-  const progressTipInner = $derived(arcEndPoint(progressEndDeg, innerR));
 
   // Min / max labels
   const minPt = $derived(arcEndPoint(startAngleDeg, outerR + 12));
@@ -76,22 +112,28 @@
 
   // ── Labels ─────────────────────────────────────────────────────────────────
   const formattedValue = $derived(
-    typeof value === 'number'
-      ? Number.isInteger(value) ? value.toString() : value.toFixed(1)
-      : '--'
+    typeof value === "number"
+      ? Number.isInteger(value)
+        ? value.toString()
+        : value.toFixed(1)
+      : "--",
   );
-  const unit = $derived(widget.custom_unit || sensorData?.unit || '');
-  const label = $derived(widget.show_label ? (widget.custom_label || sensorData?.name || '') : '');
+  const unit = $derived(widget.custom_unit || sensorData?.unit || "");
+  const label = $derived(
+    widget.show_label ? widget.custom_label || sensorData?.name || "" : "",
+  );
   const fontSize = $derived(Math.min(size / 4.5, 30));
   const unitFontSize = $derived(fontSize * 0.42);
 
-  function isValidSize(s: number) { return typeof s === 'number' && isFinite(s) && s > 10; }
+  function isValidSize(s: number) {
+    return typeof s === "number" && isFinite(s) && s > 10;
+  }
   const valid = $derived(isValidSize(size) && outerR > 0 && innerR > 0);
 
-  const gradId = $derived(widget.id.replace(/[^a-z0-9]/gi, ''));
+  const gradId = $derived(widget.id.replace(/[^a-z0-9]/gi, ""));
 
   // Percentage text
-  const pctText = $derived(Math.round(percentage * 100) + '%');
+  const pctText = $derived(Math.round(percentage * 100) + "%");
 </script>
 
 <div class="gauge-container">
@@ -102,17 +144,23 @@
         <linearGradient
           id="donut-grad-{gradId}"
           x1="0"
-          y1="{cy}"
-          x2="{size}"
-          y2="{cy}"
+          y1={cy}
+          x2={size}
+          y2={cy}
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%"   stop-color={primaryColor}     />
+          <stop offset="0%" stop-color={primaryColor} />
           <stop offset="100%" stop-color={gradientEndColor} />
         </linearGradient>
 
         <!-- Outer glow for progress arc -->
-        <filter id="donut-glow-{gradId}" x="-30%" y="-30%" width="160%" height="160%">
+        <filter
+          id="donut-glow-{gradId}"
+          x="-30%"
+          y="-30%"
+          width="160%"
+          height="160%"
+        >
           <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
@@ -121,7 +169,13 @@
         </filter>
 
         <!-- Subtle inner rim glow -->
-        <filter id="inner-glow-{gradId}" x="-10%" y="-10%" width="120%" height="120%">
+        <filter
+          id="inner-glow-{gradId}"
+          x="-10%"
+          y="-10%"
+          width="120%"
+          height="120%"
+        >
           <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" />
         </filter>
       </defs>
@@ -174,8 +228,8 @@
           font-size={fontSize}
           font-weight="700"
           fill="var(--theme-text)"
-          font-family="var(--font-family, sans-serif)"
-        >{formattedValue}</text>
+          font-family="var(--font-family, sans-serif)">{formattedValue}</text
+        >
 
         {#if unit}
           <text
@@ -186,8 +240,8 @@
             font-size={unitFontSize}
             fill="var(--theme-text-muted)"
             opacity="0.7"
-            font-family="var(--font-family, sans-serif)"
-          >{unit}</text>
+            font-family="var(--font-family, sans-serif)">{unit}</text
+          >
         {/if}
 
         {#if label}
@@ -199,8 +253,8 @@
             font-size={unitFontSize * 0.85}
             fill="var(--theme-text-muted)"
             opacity="0.5"
-            font-family="var(--font-family, sans-serif)"
-          >{label}</text>
+            font-family="var(--font-family, sans-serif)">{label}</text
+          >
         {/if}
       </g>
 
@@ -213,8 +267,8 @@
         font-size="9"
         fill="var(--theme-text-muted)"
         opacity="0.5"
-        font-family="var(--font-family, sans-serif)"
-      >{minValue}</text>
+        font-family="var(--font-family, sans-serif)">{minValue}</text
+      >
 
       <text
         x={maxPt.x}
@@ -224,8 +278,8 @@
         font-size="9"
         fill="var(--theme-text-muted)"
         opacity="0.5"
-        font-family="var(--font-family, sans-serif)"
-      >{maxValue}</text>
+        font-family="var(--font-family, sans-serif)">{maxValue}</text
+      >
 
       <!-- Percentage badge near arc end tip -->
       <text
@@ -236,8 +290,8 @@
         font-size="9"
         fill="var(--theme-text-muted)"
         opacity="0.4"
-        font-family="var(--font-family, sans-serif)"
-      >{pctText}</text>
+        font-family="var(--font-family, sans-serif)">{pctText}</text
+      >
     </svg>
   {:else}
     <div class="fallback">--</div>

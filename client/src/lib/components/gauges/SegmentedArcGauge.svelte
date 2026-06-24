@@ -192,7 +192,7 @@
       </defs>
 
       <g transform="translate({cx},{cy})">
-        {#each segments as seg, i}
+        {#each segments as seg}
           {#if seg.d}
             <path
               d={seg.d}

@@ -34,9 +34,6 @@
   const primaryColor = $derived(
     widget.gauge_settings?.color_primary ?? "var(--theme-primary)",
   );
-  const secondaryColor = $derived(
-    widget.gauge_settings?.color_secondary ?? "var(--theme-secondary)",
-  );
 
   // ── Tweened animation ──────────────────────────────────────────────────────
   const animPct = tweened(0, { duration: 500, easing: cubicOut });

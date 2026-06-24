@@ -8,18 +8,23 @@
     availableSensors,
     inspectorStore,
     sensorData,
+    visualSettings,
     widgetUtils,
   } from "$lib/stores";
+  import { gridLayout } from "$lib/stores/gridLayout.svelte";
   import { AddWidgetCommand, historyStore } from "$lib/stores/history";
   import type { GaugeType, WidgetConfig } from "$lib/types";
+  import { snapToGrid } from "$lib/utils/geometry";
   import { Check, ChevronLeft, ChevronRight, X } from "@lucide/svelte";
+  import { onDestroy } from "svelte";
   import SensorPicker from "./SensorPicker.svelte";
 
   interface Props {
     onclose?: () => void;
+    workspaceMode?: "dashboard" | "grid";
   }
 
-  const { onclose }: Props = $props();
+  const { onclose, workspaceMode = "dashboard" }: Props = $props();
 
   type WizardStep = "sensor" | "gauge" | "configure" | "place";
 
@@ -33,12 +38,13 @@
   let height = $state<number>(120);
   let placementMode = $state<"center" | "pointer">("center");
   let pointerPosition = $state<{ x: number; y: number } | null>(null);
+  let pointerClickHandler = $state<((event: MouseEvent) => void) | null>(null);
 
   const selectedSensor = $derived(
     $availableSensors.find((s) => s.id === selectedSensorId) || null,
   );
 
-  const canProceed = $derived(() => {
+  const canProceed = $derived.by(() => {
     switch (currentStep) {
       case "sensor":
         return Boolean(selectedSensorId);
@@ -78,16 +84,88 @@
     height = meta.defaultHeight;
   }
 
+  function getCanvasElements(): {
+    outer: HTMLElement;
+    content: HTMLElement;
+  } | null {
+    const outer = document.querySelector(
+      workspaceMode === "grid"
+        ? "[data-grid-canvas]"
+        : "[data-dashboard-canvas]",
+    ) as HTMLElement | null;
+    if (!outer) return null;
+
+    const content = outer.querySelector(
+      workspaceMode === "grid"
+        ? "[data-grid-canvas-content]"
+        : "[data-dashboard-canvas-content]",
+    ) as HTMLElement | null;
+    if (!content) return null;
+
+    return { outer, content };
+  }
+
+  function snapPosition(x: number, y: number): { x: number; y: number } {
+    if (workspaceMode === "grid") {
+      return {
+        x: gridLayout.snapX(Math.max(0, x)),
+        y: gridLayout.snapY(Math.max(0, y)),
+      };
+    }
+    const settings = $visualSettings;
+    if (settings.snap_to_grid && settings.grid_size > 0) {
+      return {
+        x: snapToGrid(Math.max(0, x), settings.grid_size),
+        y: snapToGrid(Math.max(0, y), settings.grid_size),
+      };
+    }
+    return { x: Math.max(0, x), y: Math.max(0, y) };
+  }
+
+  function snapSize(w: number, h: number): { width: number; height: number } {
+    if (workspaceMode === "grid") {
+      return {
+        width: gridLayout.snapWidth(w),
+        height: gridLayout.snapHeight(h),
+      };
+    }
+    return { width: w, height: h };
+  }
+
   function getPlacementPosition(): { x: number; y: number } {
     if (placementMode === "pointer" && pointerPosition) {
       return pointerPosition;
     }
-    const viewportWidth = window.innerWidth || 1200;
-    const viewportHeight = window.innerHeight || 800;
-    return {
-      x: Math.max(0, Math.round(viewportWidth / 2 - width / 2)),
-      y: Math.max(0, Math.round(viewportHeight / 2 - height / 2)),
-    };
+
+    const canvas = getCanvasElements();
+    if (!canvas) {
+      const viewportWidth = window.innerWidth || 1200;
+      const viewportHeight = window.innerHeight || 800;
+      return snapPosition(
+        viewportWidth / 2 - width / 2,
+        viewportHeight / 2 - height / 2,
+      );
+    }
+
+    const { outer } = canvas;
+    return snapPosition(
+      outer.scrollLeft + outer.clientWidth / 2 - width / 2,
+      outer.scrollTop + outer.clientHeight / 2 - height / 2,
+    );
+  }
+
+  function getPointerPosition(event: MouseEvent): { x: number; y: number } {
+    const canvas = getCanvasElements();
+    if (!canvas) {
+      return snapPosition(event.clientX, event.clientY);
+    }
+
+    const { outer, content } = canvas;
+    const rect = content.getBoundingClientRect();
+    return snapPosition(
+      event.clientX - rect.left + outer.scrollLeft,
+      event.clientY - rect.top + outer.scrollTop,
+    );
   }
 
   function createWidget() {
@@ -95,6 +173,7 @@
 
     const position = getPlacementPosition();
     const meta = gaugeTypeMetadata[selectedGaugeType];
+    const { width: finalWidth, height: finalHeight } = snapSize(width, height);
 
     const widget: WidgetConfig = {
       id: `widget_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -102,8 +181,8 @@
       gauge_type: selectedGaugeType,
       pos_x: position.x,
       pos_y: position.y,
-      width,
-      height,
+      width: finalWidth,
+      height: finalHeight,
       rotation: 0,
       z_index: 1,
       is_locked: false,
@@ -127,20 +206,42 @@
     );
 
     inspectorStore.addRecentSensor(selectedSensor.id);
-    onclose?.();
+    closeWizard();
   }
 
   function handlePointerPlacement() {
+    if (pointerClickHandler) return;
+
     const handler = (event: MouseEvent) => {
-      pointerPosition = { x: event.clientX, y: event.clientY };
-      createWidget();
+      event.preventDefault();
+      event.stopPropagation();
+      pointerPosition = getPointerPosition(event);
       window.removeEventListener("click", handler);
+      pointerClickHandler = null;
+      createWidget();
     };
+
+    pointerClickHandler = handler;
     window.addEventListener("click", handler);
   }
 
+  function closeWizard() {
+    if (pointerClickHandler) {
+      window.removeEventListener("click", pointerClickHandler);
+      pointerClickHandler = null;
+    }
+    onclose?.();
+  }
+
+  onDestroy(() => {
+    if (pointerClickHandler) {
+      window.removeEventListener("click", pointerClickHandler);
+      pointerClickHandler = null;
+    }
+  });
+
   function nextStep() {
-    if (!canProceed()) return;
+    if (!canProceed) return;
     switch (currentStep) {
       case "sensor":
         currentStep = "gauge";
@@ -188,7 +289,14 @@
 
   function handleBackdropClick(event: MouseEvent) {
     if (event.target === event.currentTarget) {
-      onclose?.();
+      if (
+        currentStep === "place" &&
+        placementMode === "pointer" &&
+        pointerClickHandler
+      ) {
+        return;
+      }
+      closeWizard();
     }
   }
 
@@ -230,7 +338,7 @@
       </div>
       <button
         type="button"
-        onclick={() => onclose?.()}
+        onclick={closeWizard}
         class="p-1 rounded text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         aria-label="Close wizard"
       >
@@ -288,7 +396,7 @@
             recentIds={$inspectorStore.recentSensors}
             favoriteIds={$inspectorStore.favoriteSensors}
             onselect={selectSensor}
-            onclose={() => onclose?.()}
+            onclose={closeWizard}
           />
         </div>
       {:else if currentStep === "gauge"}
@@ -328,10 +436,13 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-[var(--theme-text-muted)] mb-1"
+              <label
+                for="stww-custom-label"
+                class="block text-xs text-[var(--theme-text-muted)] mb-1"
                 >Label</label
               >
               <input
+                id="stww-custom-label"
                 type="text"
                 bind:value={customLabel}
                 placeholder={selectedSensor?.name || "Sensor label"}
@@ -339,10 +450,13 @@
               />
             </div>
             <div>
-              <label class="block text-xs text-[var(--theme-text-muted)] mb-1"
+              <label
+                for="stww-custom-unit"
+                class="block text-xs text-[var(--theme-text-muted)] mb-1"
                 >Unit</label
               >
               <input
+                id="stww-custom-unit"
                 type="text"
                 bind:value={customUnit}
                 placeholder={selectedSensor?.unit || "Unit"}
@@ -353,10 +467,13 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-[var(--theme-text-muted)] mb-1"
+              <label
+                for="stww-width"
+                class="block text-xs text-[var(--theme-text-muted)] mb-1"
                 >Width</label
               >
               <input
+                id="stww-width"
                 type="number"
                 bind:value={width}
                 min={50}
@@ -365,10 +482,13 @@
               />
             </div>
             <div>
-              <label class="block text-xs text-[var(--theme-text-muted)] mb-1"
+              <label
+                for="stww-height"
+                class="block text-xs text-[var(--theme-text-muted)] mb-1"
                 >Height</label
               >
               <input
+                id="stww-height"
                 type="number"
                 bind:value={height}
                 min={50}
@@ -379,8 +499,8 @@
           </div>
 
           <div>
-            <label class="block text-xs text-[var(--theme-text-muted)] mb-2"
-              >Primary Color</label
+            <span class="block text-xs text-[var(--theme-text-muted)] mb-2"
+              >Primary Color</span
             >
             <div class="flex items-center gap-2 flex-wrap">
               {#each colorOptions() as color}
@@ -479,7 +599,7 @@
     >
       <button
         type="button"
-        onclick={() => onclose?.()}
+        onclick={closeWizard}
         class="px-4 py-2 text-sm text-[var(--theme-text)] border border-[var(--theme-border)] rounded-md hover:bg-[var(--theme-surface)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
       >
         Cancel
@@ -500,7 +620,7 @@
           onclick={currentStep === "place" && placementMode === "pointer"
             ? handlePointerPlacement
             : nextStep}
-          disabled={!canProceed()}
+          disabled={!canProceed}
           class="px-4 py-2 text-sm bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 disabled:opacity-40 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] flex items-center gap-1"
         >
           {#if currentStep === "place"}

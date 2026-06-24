@@ -2,8 +2,10 @@
   import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
   import ContextMenu from "$lib/components/ContextMenu.svelte";
   import DashboardCanvas from "$lib/components/DashboardCanvas.svelte";
+  import GridCanvas from "$lib/components/GridCanvas.svelte";
   import LeftSidebar from "$lib/components/LeftSidebar.svelte";
   import RightSidebar from "$lib/components/RightSidebar.svelte";
+  import SensorToWidgetWizard from "$lib/components/SensorToWidgetWizard.svelte";
   import TopBar from "$lib/components/TopBar.svelte";
   import { apiService } from "$lib/services/api";
   import { configService, type AppConfig } from "$lib/services/configService";
@@ -11,22 +13,33 @@
     availableSensors,
     contextMenu,
     editMode,
+    inspectorStore,
     sensorUtils,
     uiUtils,
     visualUtils,
     widgetArray,
   } from "$lib/stores";
   import { widgetUtils } from "$lib/stores/data/widgets";
-  import type { GaugeSettings, GaugeType, WidgetConfig } from "$lib/types";
+  import type {
+    Bounds,
+    GaugeSettings,
+    GaugeType,
+    WidgetConfig,
+  } from "$lib/types";
   import { logger } from "$lib/utils/logger";
   import { RefreshCw } from "@lucide/svelte";
   import { onMount } from "svelte";
 
   let showLeftSidebar = $state(false);
   let showRightSidebar = $state(false);
+  let workspaceMode = $state<"dashboard" | "grid">("dashboard");
+  let showWizard = $state(false);
   let hasInitialized = $state(false);
   let leftSidebarComponent: {
     findSensorInSidebar: (_sensorId: string) => void;
+  } | null = $state(null);
+  let dashboardCanvas: {
+    scrollToBounds: (_bounds: Bounds) => void;
   } | null = $state(null);
   let config: AppConfig | null = $state(null);
   let initializationError: string | null = $state(null);
@@ -281,6 +294,18 @@
     showRightSidebar = !showRightSidebar;
   }
 
+  function toggleWorkspaceMode() {
+    workspaceMode = workspaceMode === "dashboard" ? "grid" : "dashboard";
+  }
+
+  function openWizard() {
+    showWizard = true;
+  }
+
+  function closeWizard() {
+    showWizard = false;
+  }
+
   function handleDocumentClick(event: MouseEvent) {
     if ($contextMenu.show) {
       const target = event.target as Element;
@@ -300,6 +325,11 @@
     setTimeout(() => {
       leftSidebarComponent?.findSensorInSidebar(sensorId);
     }, 100);
+  }
+
+  function handleLocateGroup(bounds: Bounds) {
+    logger.debug("[App] Locating group bounds:", bounds);
+    dashboardCanvas?.scrollToBounds(bounds);
   }
 </script>
 
@@ -344,8 +374,10 @@
     <TopBar
       ontoggleLeftSidebar={toggleLeftSidebar}
       ontoggleRightSidebar={toggleRightSidebar}
+      ontoggleWorkspace={toggleWorkspaceMode}
       {showLeftSidebar}
       {showRightSidebar}
+      {workspaceMode}
     />
 
     <!-- Main Content Area -->
@@ -358,21 +390,35 @@
           <LeftSidebar
             bind:this={leftSidebarComponent}
             onclose={() => (showLeftSidebar = false)}
+            onopenWizard={openWizard}
+            {workspaceMode}
           />
         </div>
       {/if}
 
       <!-- Dashboard Canvas -->
       <div class="flex-1 relative overflow-hidden">
-        <DashboardCanvas onopenLeftSidebar={toggleLeftSidebar} />
+        {#if workspaceMode === "grid"}
+          <GridCanvas />
+        {:else}
+          <DashboardCanvas
+            bind:this={dashboardCanvas}
+            onopenLeftSidebar={toggleLeftSidebar}
+            onopenWizard={openWizard}
+          />
+        {/if}
       </div>
 
       <!-- Right Sidebar -->
       {#if showRightSidebar}
         <div
-          class="w-80 border-l border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300"
+          class="shrink-0 border-l border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300"
+          style:width="{$inspectorStore.rightSidebarWidth}px"
         >
-          <RightSidebar onclose={() => (showRightSidebar = false)} />
+          <RightSidebar
+            onclose={() => (showRightSidebar = false)}
+            onlocateGroup={handleLocateGroup}
+          />
         </div>
       {/if}
     </div>
@@ -384,7 +430,12 @@
         y={$contextMenu.y}
         target={$contextMenu.target}
         onfindInSidebar={handleFindInSidebar}
+        onopenWizard={openWizard}
       />
+    {/if}
+
+    {#if showWizard}
+      <SensorToWidgetWizard onclose={closeWizard} {workspaceMode} />
     {/if}
 
     <!-- Connection Status Indicator -->

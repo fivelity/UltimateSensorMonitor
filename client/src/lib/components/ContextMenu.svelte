@@ -12,10 +12,17 @@
   import {
     AddWidgetCommand,
     BatchCommand,
+    DeleteGroupCommand,
+    GroupWidgetsCommand,
     historyStore,
     RemoveWidgetCommand,
   } from "$lib/stores/history";
-  import type { ContextMenuState, Selection, WidgetConfig } from "$lib/types";
+  import type {
+    ContextMenuState,
+    Selection,
+    WidgetConfig,
+    WidgetGroup,
+  } from "$lib/types";
   import {
     AlignCenterHorizontal,
     AlignCenterVertical,
@@ -32,6 +39,7 @@
     Lock,
     MousePointerClick,
     Search,
+    Sparkles,
     Trash2,
     Unlock,
     X,
@@ -45,6 +53,7 @@
     y: number;
     target?: ContextMenuState["target"];
     onfindInSidebar?: (_sensorId: string) => void;
+    onopenWizard?: () => void;
   }
 
   type MenuActionItem = {
@@ -64,7 +73,13 @@
     return item as MenuActionItem;
   }
 
-  const { x, y, target = undefined, onfindInSidebar }: Props = $props();
+  const {
+    x,
+    y,
+    target = undefined,
+    onfindInSidebar,
+    onopenWizard,
+  }: Props = $props();
 
   let menuElement = $state<HTMLElement | undefined>(undefined);
 
@@ -222,12 +237,10 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 1
         ) {
-          // Create a new group from selected widgets
           const firstWidget = widgetsMap[selectedWidgetsState.ids[0]];
           const relativePositions: Record<string, { x: number; y: number }> =
             {};
 
-          // Calculate relative positions from the first widget
           selectedWidgetsState.ids.forEach((id: string) => {
             const widget = widgetsMap[id];
             if (widget) {
@@ -247,13 +260,15 @@
             created_at: new Date().toISOString(),
           };
 
-          // Update widgets to include group_id
-          selectedWidgetsState.ids.forEach((id: string) => {
-            widgetUtils.updateWidget(id, { group_id: newGroup.id });
-          });
-
-          // Add the group
-          widgetUtils.addGroup(newGroup);
+          historyStore.executeCommand(
+            new GroupWidgetsCommand(
+              newGroup,
+              selectedWidgetsState.ids,
+              widgetUtils.addGroup,
+              widgetUtils.removeGroup,
+              widgetUtils.updateWidget,
+            ),
+          );
         }
         break;
 
@@ -262,7 +277,6 @@
           selectedWidgetsState.type === "widget" &&
           selectedWidgetsState.ids.length > 0
         ) {
-          // Find groups that contain any of the selected widgets
           const groupsToRemove = new Set<string>();
 
           selectedWidgetsState.ids.forEach((widgetId: string) => {
@@ -272,15 +286,37 @@
             }
           });
 
-          // Remove each group
-          groupsToRemove.forEach((groupId) => {
-            widgetUtils.removeGroup(groupId);
-          });
+          const deleteCommands = Array.from(groupsToRemove)
+            .map((groupId) => widgetGroupsMap[groupId])
+            .filter((group): group is WidgetGroup => Boolean(group))
+            .map(
+              (group) =>
+                new DeleteGroupCommand(
+                  group,
+                  group.widgets,
+                  widgetUtils.removeGroup,
+                  widgetUtils.addGroup,
+                  widgetUtils.updateWidget,
+                ),
+            );
+
+          if (deleteCommands.length > 0) {
+            historyStore.executeCommand(
+              new BatchCommand(
+                deleteCommands,
+                `Ungroup ${deleteCommands.length} group${deleteCommands.length === 1 ? "" : "s"}`,
+              ),
+            );
+          }
         }
         break;
 
       case "clear-selection":
         uiUtils.clearSelection();
+        break;
+
+      case "open-wizard":
+        onopenWizard?.();
         break;
 
       case "align-left":
@@ -458,7 +494,14 @@
           ? selectedWidgetsState.ids.length
           : 0;
 
+      items.push({
+        label: "Add Widget Wizard",
+        action: "open-wizard",
+        icon: Sparkles,
+      });
+
       if (selectedCount > 0) {
+        items.push({ type: "divider" });
         items.push({
           label: "Clear Selection",
           action: "clear-selection",

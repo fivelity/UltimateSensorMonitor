@@ -29,13 +29,17 @@
   const {
     showLeftSidebar,
     showRightSidebar,
+    workspaceMode = "dashboard",
     ontoggleLeftSidebar,
     ontoggleRightSidebar,
+    ontoggleWorkspace,
   }: {
     showLeftSidebar: boolean;
     showRightSidebar: boolean;
+    workspaceMode?: "dashboard" | "grid";
     ontoggleLeftSidebar?: () => void;
     ontoggleRightSidebar?: () => void;
+    ontoggleWorkspace?: () => void;
   } = $props();
 
   let fileInput: HTMLInputElement | undefined = $state();
@@ -71,6 +75,10 @@
 
   function toggleRightSidebar() {
     ontoggleRightSidebar?.();
+  }
+
+  function toggleWorkspace() {
+    ontoggleWorkspace?.();
   }
 
   function applyThemePreset(presetId: string) {
@@ -391,6 +399,25 @@
         </div>
       {/if}
     </div>
+
+    <!-- Workspace mode toggle -->
+    <button
+      onclick={toggleWorkspace}
+      class="px-2 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
+      class:bg-[var(--theme-primary)]={workspaceMode === "grid"}
+      class:text-[var(--theme-background)]={workspaceMode === "grid"}
+      class:text-[var(--theme-text-muted)]={workspaceMode !== "grid"}
+      class:hover:bg-[var(--theme-background)]={workspaceMode !== "grid"}
+      class:hover:text-[var(--theme-text)]={workspaceMode !== "grid"}
+      title={workspaceMode === "grid"
+        ? "Switch to Dashboard"
+        : "Switch to Grid"}
+      aria-label={workspaceMode === "grid"
+        ? "Switch to Dashboard"
+        : "Switch to Grid"}
+    >
+      {workspaceMode === "grid" ? "Dashboard" : "Grid"}
+    </button>
 
     <!-- Grid toggle -->
     {#if $editMode === "edit"}

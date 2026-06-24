@@ -11,6 +11,7 @@
     placeholder?: string;
     onselect?: (sensorId: string) => void;
     onclose?: () => void;
+    id?: string;
   }
 
   const {
@@ -20,6 +21,7 @@
     placeholder = "Search sensors...",
     onselect,
     onclose,
+    id = undefined,
   }: Props = $props();
 
   let query = $state("");
@@ -140,6 +142,7 @@
 <div class="flex flex-col gap-2">
   <SearchInput
     value={query}
+    {id}
     {placeholder}
     onchange={(value) => (query = value)}
     onclear={() => (query = "")}

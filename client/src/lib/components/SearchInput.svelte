@@ -8,6 +8,7 @@
     onclear?: () => void;
     className?: string;
     autofocus?: boolean;
+    id?: string;
   }
 
   const {
@@ -17,9 +18,16 @@
     onclear,
     className = "",
     autofocus = false,
+    id = undefined,
   }: Props = $props();
 
   let inputElement: HTMLInputElement | undefined = $state();
+
+  $effect(() => {
+    if (autofocus && inputElement) {
+      inputElement.focus();
+    }
+  });
 
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -47,9 +55,9 @@
   <input
     bind:this={inputElement}
     type="text"
+    {id}
     {value}
     {placeholder}
-    {autofocus}
     oninput={handleInput}
     onkeydown={handleKeydown}
     class="w-full pl-9 pr-8 py-2 bg-[var(--theme-background)] border border-[var(--theme-border)] rounded-md text-sm text-[var(--theme-text)] placeholder:text-[var(--theme-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent transition-colors"

@@ -1,5 +1,5 @@
-import { writable } from "svelte/store";
 import type { WidgetConfig, WidgetGroup } from "$lib/types";
+import { writable } from "svelte/store";
 
 // Command interface for the Command pattern
 export interface Command {
@@ -343,5 +343,70 @@ export class BatchCommand implements Command {
       .slice()
       .reverse()
       .forEach((cmd) => cmd.undo());
+  }
+}
+
+export class UpdateGroupCommand implements Command {
+  id: string;
+  type = "update_group";
+  description: string;
+  timestamp: number;
+
+  constructor(
+    private groupId: string,
+    private oldValues: Partial<WidgetGroup>,
+    private newValues: Partial<WidgetGroup>,
+    private updateGroupFn: (
+      id: string,
+      updates: Partial<WidgetGroup>,
+    ) => void,
+  ) {
+    this.id = `update_group_${groupId}_${Date.now()}`;
+    this.description = `Update group properties`;
+    this.timestamp = Date.now();
+  }
+
+  execute() {
+    this.updateGroupFn(this.groupId, this.newValues);
+  }
+
+  undo() {
+    this.updateGroupFn(this.groupId, this.oldValues);
+  }
+}
+
+export class DeleteGroupCommand implements Command {
+  id: string;
+  type = "delete_group";
+  description: string;
+  timestamp: number;
+
+  constructor(
+    private group: WidgetGroup,
+    private widgetIds: string[],
+    private removeGroupFn: (id: string) => void,
+    private addGroupFn: (group: WidgetGroup) => void,
+    private updateWidgetFn: (
+      id: string,
+      updates: Partial<WidgetConfig>,
+    ) => void,
+  ) {
+    this.id = `delete_group_${group.id}_${Date.now()}`;
+    this.description = `Delete group "${group.name}"`;
+    this.timestamp = Date.now();
+  }
+
+  execute() {
+    this.removeGroupFn(this.group.id);
+    this.widgetIds.forEach((id) => {
+      this.updateWidgetFn(id, { group_id: undefined });
+    });
+  }
+
+  undo() {
+    this.addGroupFn(this.group);
+    this.widgetIds.forEach((id) => {
+      this.updateWidgetFn(id, { group_id: this.group.id });
+    });
   }
 }

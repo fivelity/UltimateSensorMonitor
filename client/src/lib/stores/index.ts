@@ -21,6 +21,9 @@ export {
 // Dashboard Layout
 export { dashboardLayout } from "./dashboardLayout.js";
 
+// Grid-Snap Layout
+export { gridLayout } from "./gridLayout.svelte.js";
+
 // Dashboard Interaction Stores
 export { alignWidgets, distributeWidgets } from "./interactions/align.js";
 export {

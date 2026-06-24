@@ -23,6 +23,7 @@
     Plus,
     RotateCcw,
     RotateCw,
+    Sparkles,
   } from "@lucide/svelte";
   import { get } from "svelte/store";
   import SnapGuides from "./SnapGuides.svelte";
@@ -30,9 +31,10 @@
 
   interface Props {
     onopenLeftSidebar?: () => void;
+    onopenWizard?: () => void;
   }
 
-  const { onopenLeftSidebar }: Props = $props();
+  const { onopenLeftSidebar, onopenWizard }: Props = $props();
 
   interface SelectionRect {
     left: number;
@@ -277,6 +279,33 @@
     visualUtils.setGridSize(newSize);
   }
 
+  export function scrollToBounds(bounds: Bounds) {
+    if (!canvasElement) return;
+
+    const padding = 40;
+    const targetLeft = Math.max(0, bounds.x - padding);
+    const targetTop = Math.max(0, bounds.y - padding);
+    const targetRight = bounds.x + bounds.width + padding;
+    const targetBottom = bounds.y + bounds.height + padding;
+
+    // Only scroll if the target is outside the current viewport
+    const viewportWidth = canvasElement.clientWidth;
+    const viewportHeight = canvasElement.clientHeight;
+
+    if (targetRight > canvasElement.scrollLeft + viewportWidth) {
+      canvasElement.scrollLeft = targetRight - viewportWidth;
+    }
+    if (targetLeft < canvasElement.scrollLeft) {
+      canvasElement.scrollLeft = targetLeft;
+    }
+    if (targetBottom > canvasElement.scrollTop + viewportHeight) {
+      canvasElement.scrollTop = targetBottom - viewportHeight;
+    }
+    if (targetTop < canvasElement.scrollTop) {
+      canvasElement.scrollTop = targetTop;
+    }
+  }
+
   const selectionRect = $derived<SelectionRect | null>(
     isSelecting
       ? {
@@ -300,18 +329,18 @@
   class:cursor-crosshair={$editMode === "edit"}
   class:drag-over={isDragOver}
   role="application"
-  tabindex="0"
   aria-label="Dashboard canvas"
-  onkeydown={handleKeyboardShortcut}
   oncontextmenu={handleCanvasRightClick}
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}
   ondrop={handleDrop}
   data-canvas-background
+  data-dashboard-canvas
 >
   <div
     bind:this={canvasContentElement}
     class="canvas-content relative min-w-full min-h-full"
+    data-dashboard-canvas-content
     style="width: max(100%, 1920px); height: max(100%, 1080px);"
   >
     {#if $widgetCount === 0}
@@ -336,7 +365,7 @@
               Switch to Edit mode to add sensors and build your dashboard.
             {/if}
           </p>
-          <div class="flex items-center justify-center gap-3">
+          <div class="flex items-center justify-center gap-3 flex-wrap">
             {#if $editMode === "edit"}
               <button
                 class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
@@ -344,6 +373,13 @@
               >
                 <Plus size={16} />
                 Open Sensor List
+              </button>
+              <button
+                class="px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-md hover:bg-[var(--theme-primary)]/10 transition-colors flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
+                onclick={() => onopenWizard?.()}
+              >
+                <Sparkles size={16} />
+                Add Widget Wizard
               </button>
             {:else}
               <button

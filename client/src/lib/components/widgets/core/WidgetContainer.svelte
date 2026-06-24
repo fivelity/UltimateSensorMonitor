@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { dashboardInteraction, editMode, selectedWidgets } from "$lib/stores";
+  import {
+    dashboardInteraction,
+    editMode,
+    inspectorStore,
+    selectedWidgets,
+    widgetGroups,
+  } from "$lib/stores";
   import type { WidgetConfig } from "$lib/types";
 
   import ResizeHandles from "./ResizeHandles.svelte";
@@ -40,6 +46,19 @@
   const isResizing = $derived(
     $dashboardInteraction.mode === "resizing" &&
       $dashboardInteraction.activeWidgetIds.includes(widget.id),
+  );
+
+  const highlightedGroupId = $derived($inspectorStore.selectedGroupId);
+  const isGroupHighlighted = $derived(
+    widget.group_id !== undefined && widget.group_id === highlightedGroupId,
+  );
+  const highlightedGroup = $derived(
+    isGroupHighlighted && widget.group_id
+      ? $widgetGroups[widget.group_id]
+      : null,
+  );
+  const groupHighlightColor = $derived(
+    highlightedGroup?.tag_color || "var(--theme-primary)",
   );
 
   $effect(() => {
@@ -116,7 +135,9 @@
   class:widget-dragging={isDragging}
   class:widget-edit-mode={canEdit}
   class:widget-resizing={isResizing}
+  class:widget-group-highlight={isGroupHighlighted}
   style=""
+  style:--group-highlight-color={groupHighlightColor}
   style:left="{widget.pos_x}px"
   style:top="{widget.pos_y}px"
   style:width="{widget.width}px"
@@ -172,6 +193,10 @@
 
   .widget-selected {
     box-shadow: 0 0 0 2px var(--theme-primary);
+  }
+
+  .widget-group-highlight {
+    box-shadow: 0 0 0 3px var(--group-highlight-color);
   }
 
   .widget-locked {

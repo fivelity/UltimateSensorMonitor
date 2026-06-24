@@ -5,6 +5,7 @@
   } from "$lib/constants/gauges";
   import {
     availableSensors,
+    gridLayout,
     inspectorStore,
     sensorData,
     widgetUtils,
@@ -23,6 +24,7 @@
     Gauge,
     GripVertical,
     Plus,
+    Sparkles,
     Star,
     Thermometer,
     X,
@@ -31,7 +33,15 @@
   import SearchInput from "./SearchInput.svelte";
   import SensorAddPopover from "./SensorAddPopover.svelte";
 
-  const { onclose }: { onclose?: () => void } = $props();
+  const {
+    onclose,
+    onopenWizard,
+    workspaceMode = "dashboard",
+  }: {
+    onclose?: () => void;
+    onopenWizard?: () => void;
+    workspaceMode?: "dashboard" | "grid";
+  } = $props();
 
   // Sensor inventory search
   let searchQuery = $state("");
@@ -163,6 +173,13 @@
     const meta = gaugeTypeMetadata[gaugeType];
     const size = { width: meta.defaultWidth, height: meta.defaultHeight };
 
+    if (workspaceMode === "grid") {
+      pos.x = gridLayout.snapX(pos.x);
+      pos.y = gridLayout.snapY(pos.y);
+      size.width = gridLayout.snapWidth(size.width);
+      size.height = gridLayout.snapHeight(size.height);
+    }
+
     const widget: WidgetConfig = {
       id: `widget_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       sensor_id: sensor.id,
@@ -245,16 +262,15 @@
   >
     <h2 class="font-semibold text-[var(--theme-text)]">Sensor Inventory</h2>
     <div class="flex items-center gap-1">
-      <!-- Wizard button deferred to Phase C -->
-      <!-- <button
+      <button
         type="button"
-        onclick={() => (showWizard = true)}
+        onclick={() => onopenWizard?.()}
         class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-primary)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
         title="Add widget wizard"
         aria-label="Add widget wizard"
       >
         <Sparkles size={16} />
-      </button> -->
+      </button>
       <button
         type="button"
         onclick={() => onclose?.()}
@@ -454,11 +470,6 @@
     }}
   />
 {/if}
-
-<!-- SensorToWidgetWizard is deferred to Phase C -->
-<!-- {#if showWizard}
-  <SensorToWidgetWizard onclose={() => (showWizard = false)} />
-{/if} -->
 
 <style>
   :global(.sensor-item.highlight-sensor) {

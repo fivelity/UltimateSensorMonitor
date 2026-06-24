@@ -27,6 +27,8 @@ export interface InspectorState {
   maxRecentSensors: number;
   /** Maximum number of favorite sensors to retain */
   maxFavoriteSensors: number;
+  /** Currently highlighted group ID for canvas group highlight */
+  selectedGroupId: string | null;
 }
 
 export interface PersistedSensorInventory {
@@ -52,6 +54,7 @@ const DEFAULT_INSPECTOR_STATE: InspectorState = {
   favoriteSensors: [],
   maxRecentSensors: 10,
   maxFavoriteSensors: 20,
+  selectedGroupId: null,
 };
 
 function loadInspectorState(): InspectorState {
@@ -231,6 +234,11 @@ function createInspectorStore() {
       });
     },
 
+    /** Set the currently highlighted group ID */
+    setSelectedGroupId: (groupId: string | null) => {
+      update((state) => ({ ...state, selectedGroupId: groupId }));
+    },
+
     /** Reset inspector UI state while preserving sensor inventory */
     resetUIState: () => {
       update((state) => {
@@ -240,6 +248,7 @@ function createInspectorStore() {
           rightSidebarWidth: DEFAULT_INSPECTOR_STATE.rightSidebarWidth,
           expandedSections: { ...DEFAULT_EXPANDED_SECTIONS },
           sensorSearchQuery: "",
+          selectedGroupId: null,
         };
         persistState(next);
         return next;

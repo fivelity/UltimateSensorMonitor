@@ -16,6 +16,11 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.es2021,
+        $state: "readonly",
+        $derived: "readonly",
+        $effect: "readonly",
+        $props: "readonly",
+        $bindable: "readonly",
       },
     },
   },

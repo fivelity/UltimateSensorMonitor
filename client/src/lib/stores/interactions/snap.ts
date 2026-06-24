@@ -37,7 +37,7 @@ function addToPositionMap(map: Map<number, string[]>, position: number, widgetId
   map.get(rounded)!.push(widgetId);
 }
 
-function getGuideColor(widgetCount: number): { color: string; colorRgb: string } {
+export function getGuideColor(widgetCount: number): { color: string; colorRgb: string } {
   if (widgetCount >= 3) {
     return { color: "var(--theme-danger)", colorRgb: "var(--theme-danger-rgb)" };
   }

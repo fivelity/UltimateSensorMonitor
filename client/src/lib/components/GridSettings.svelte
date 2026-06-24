@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { RotateCcw } from "@lucide/svelte";
   import {
-    CELL_SIZES,
+    COLUMN_OPTIONS,
     CORNER_RADIUSES,
     GRID_GAPS,
+    ROW_OPTIONS,
     gridLayout,
   } from "$lib/stores/gridLayout.svelte";
+  import { RotateCcw } from "@lucide/svelte";
 </script>
 
 <div
@@ -26,17 +27,35 @@
 
   <div class="space-y-3">
     <label class="block text-xs text-[var(--theme-text-muted)]">
-      Cell Size
+      Columns
       <select
         class="mt-1 block w-full rounded-md border border-[var(--theme-border)] bg-[var(--theme-background)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-        bind:value={gridLayout.cellSize}
+        value={gridLayout.columns}
         onchange={(event) =>
-          gridLayout.setCellSize(
-            Number(event.currentTarget.value) as (typeof CELL_SIZES)[number],
+          gridLayout.setColumns(
+            Number(
+              event.currentTarget.value,
+            ) as (typeof COLUMN_OPTIONS)[number],
           )}
       >
-        {#each CELL_SIZES as size}
-          <option value={size}>{size}px</option>
+        {#each COLUMN_OPTIONS as columns}
+          <option value={columns}>{columns}</option>
+        {/each}
+      </select>
+    </label>
+
+    <label class="block text-xs text-[var(--theme-text-muted)]">
+      Rows
+      <select
+        class="mt-1 block w-full rounded-md border border-[var(--theme-border)] bg-[var(--theme-background)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
+        value={gridLayout.rows}
+        onchange={(event) =>
+          gridLayout.setRows(
+            Number(event.currentTarget.value) as (typeof ROW_OPTIONS)[number],
+          )}
+      >
+        {#each ROW_OPTIONS as rows}
+          <option value={rows}>{rows}</option>
         {/each}
       </select>
     </label>
@@ -64,7 +83,9 @@
         bind:value={gridLayout.cornerRadius}
         onchange={(event) =>
           gridLayout.setCornerRadius(
-            Number(event.currentTarget.value) as (typeof CORNER_RADIUSES)[number],
+            Number(
+              event.currentTarget.value,
+            ) as (typeof CORNER_RADIUSES)[number],
           )}
       >
         {#each CORNER_RADIUSES as radius}

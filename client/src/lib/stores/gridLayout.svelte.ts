@@ -1,5 +1,6 @@
-export type CellSize = 64 | 96 | 128;
-export const CELL_SIZES: CellSize[] = [64, 96, 128];
+export type GridCount = 2 | 4 | 6 | 8 | 10 | 12 | 16 | 20 | 24;
+export const COLUMN_OPTIONS: GridCount[] = [2, 4, 6, 8, 10, 12, 16, 20, 24];
+export const ROW_OPTIONS: GridCount[] = [2, 4, 6, 8, 10, 12, 16, 20, 24];
 
 export type GridGap = 4 | 8 | 12 | 16 | 20 | 24;
 export const GRID_GAPS: GridGap[] = [4, 8, 12, 16, 20, 24];
@@ -28,7 +29,7 @@ export const CORNER_RADIUSES: CornerRadius[] = [
   1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 32, 40, 48, 56, 64,
 ];
 
-const STORAGE_KEY = "ultimon_grid_layout";
+const STORAGE_KEY = "ultimon_grid_layout_v2";
 
 export function snapToGridStep(value: number, gridStep: number): number {
   if (gridStep <= 0) return value;
@@ -47,22 +48,38 @@ export function snapSizeToCells(
 }
 
 class GridLayoutState {
-  cellSize = $state<CellSize>(64);
+  columns = $state<GridCount>(12);
+  rows = $state<GridCount>(8);
   gridGap = $state<GridGap>(8);
   cornerRadius = $state<CornerRadius>(8);
 
-  gridStep = $derived(this.cellSize + this.gridGap);
+  cellWidth = $state<number>(0);
+  cellHeight = $state<number>(0);
+  originX = $state<number>(0);
+  originY = $state<number>(0);
+
+  gridStepX = $derived(this.cellWidth + this.gridGap);
+  gridStepY = $derived(this.cellHeight + this.gridGap);
+
   effectiveCornerRadius = $derived(
-    Math.min(this.cornerRadius, this.cellSize / 2),
+    Math.min(this.cornerRadius, this.cellWidth / 2, this.cellHeight / 2),
   );
 
-  snapX = $derived((value: number) => snapToGridStep(value, this.gridStep));
-  snapY = $derived((value: number) => snapToGridStep(value, this.gridStep));
-  snapWidth = $derived((value: number) =>
-    snapSizeToCells(value, this.cellSize, this.gridGap),
+  padding = $derived(this.gridGap);
+
+  snapX = $derived(
+    (value: number) =>
+      this.originX + snapToGridStep(value - this.originX, this.gridStepX),
   );
-  snapHeight = $derived((value: number) =>
-    snapSizeToCells(value, this.cellSize, this.gridGap),
+  snapY = $derived(
+    (value: number) =>
+      this.originY + snapToGridStep(value - this.originY, this.gridStepY),
+  );
+  snapWidth = $derived(
+    (value: number) => snapSizeToCells(value, this.cellWidth, this.gridGap),
+  );
+  snapHeight = $derived(
+    (value: number) => snapSizeToCells(value, this.cellHeight, this.gridGap),
   );
 
   constructor() {
@@ -73,13 +90,17 @@ class GridLayoutState {
 
     try {
       const parsed = JSON.parse(saved) as {
-        cellSize?: unknown;
+        columns?: unknown;
+        rows?: unknown;
         gridGap?: unknown;
         cornerRadius?: unknown;
       };
 
-      if (CELL_SIZES.includes(parsed.cellSize as CellSize)) {
-        this.cellSize = parsed.cellSize as CellSize;
+      if (COLUMN_OPTIONS.includes(parsed.columns as GridCount)) {
+        this.columns = parsed.columns as GridCount;
+      }
+      if (ROW_OPTIONS.includes(parsed.rows as GridCount)) {
+        this.rows = parsed.rows as GridCount;
       }
       if (GRID_GAPS.includes(parsed.gridGap as GridGap)) {
         this.gridGap = parsed.gridGap as GridGap;
@@ -92,8 +113,13 @@ class GridLayoutState {
     }
   }
 
-  setCellSize(value: CellSize): void {
-    this.cellSize = value;
+  setColumns(value: GridCount): void {
+    this.columns = value;
+    this.save();
+  }
+
+  setRows(value: GridCount): void {
+    this.rows = value;
     this.save();
   }
 
@@ -107,8 +133,21 @@ class GridLayoutState {
     this.save();
   }
 
+  setCellDimensions(
+    width: number,
+    height: number,
+    originX: number,
+    originY: number,
+  ): void {
+    this.cellWidth = width;
+    this.cellHeight = height;
+    this.originX = originX;
+    this.originY = originY;
+  }
+
   reset(): void {
-    this.cellSize = 64;
+    this.columns = 12;
+    this.rows = 8;
     this.gridGap = 8;
     this.cornerRadius = 8;
     this.save();
@@ -120,7 +159,8 @@ class GridLayoutState {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        cellSize: this.cellSize,
+        columns: this.columns,
+        rows: this.rows,
         gridGap: this.gridGap,
         cornerRadius: this.cornerRadius,
       }),

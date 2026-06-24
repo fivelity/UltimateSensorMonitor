@@ -1,30 +1,37 @@
 <script lang="ts">
+  /**
+   * DashboardCanvas — unified, tool-driven canvas.
+   *
+   * Replaces the legacy dashboard/grid mode split. The canvas always supports
+   * free positioning with optional grid-snap. Pointer behavior is driven by
+   * the active tool from the FloatingToolbar:
+   *   - select: rubber-band selection + click-to-select
+   *   - move:   widgets are draggable; clicking a widget starts drag
+   *   - pan:    canvas pans on pointer drag; widgets are non-interactive
+   *   - add:    clicking empty canvas opens the widget wizard
+   */
+
   import {
     activeSnapGuides,
     dashboardInteraction,
-    editMode,
     handleKeyboardShortcut,
     selectedWidgets,
     visualSettings,
-    visualUtils,
     widgetArray,
     widgetCount,
     widgetUtils,
   } from "$lib/stores";
+  import {
+    activeTool,
+    pendingAddPosition,
+    type ToolId,
+  } from "$lib/stores/activeTool";
   import { uiUtils } from "$lib/stores/core/ui";
   import { AddWidgetCommand, historyStore } from "$lib/stores/history";
   import type { Bounds, GaugeType, Point, WidgetConfig } from "$lib/types";
   import { snapToGrid } from "$lib/utils/geometry";
   import { logger } from "$lib/utils/logger";
-  import {
-    Grid3X3,
-    Magnet,
-    MousePointer2,
-    Plus,
-    RotateCcw,
-    RotateCw,
-    Sparkles,
-  } from "@lucide/svelte";
+  import { MousePointer2, Plus, Sparkles } from "@lucide/svelte";
   import { get } from "svelte/store";
   import SnapGuides from "./SnapGuides.svelte";
   import WidgetContainer from "./widgets/core/WidgetContainer.svelte";
@@ -50,6 +57,21 @@
   let selectionEnd = $state<Point>({ x: 0, y: 0 });
   let isDragOver = $state(false);
 
+  // Pan tool state
+  let isPanning = $state(false);
+  let panStart = $state<Point>({ x: 0, y: 0 });
+  let panScrollStart = $state<{ left: number; top: number }>({
+    left: 0,
+    top: 0,
+  });
+
+  const currentTool = $derived<ToolId>($activeTool);
+  const isPanTool = $derived(currentTool === "pan");
+  const isAddTool = $derived(currentTool === "add");
+  const isEditable = $derived(
+    currentTool === "select" || currentTool === "move" || currentTool === "add",
+  );
+
   $effect(() => {
     if (!canvasElement) return;
 
@@ -57,25 +79,48 @@
       if (get(dashboardInteraction).mode === "dragging") return;
 
       const target = event.target as Element;
+
+      // Pan tool: always pan on canvas drag
+      if (isPanTool) {
+        startPan(event);
+        return;
+      }
+
+      // Only react to clicks on the canvas background (not widgets)
       if (
         target === canvasElement ||
         target === canvasContentElement ||
         target.closest("[data-canvas-background]")
       ) {
-        if ($editMode !== "edit") {
+        if (isAddTool) {
+          // Add tool: open wizard at cursor position
+          handleAddAtCursor(event);
+          return;
+        }
+
+        if (!isEditable) {
           uiUtils.clearSelection();
           return;
         }
-        startSelection(event);
+
+        // Select tool: rubber-band selection
+        if (currentTool === "select") {
+          startSelection(event);
+        } else {
+          // Move tool: clear selection on background click
+          if (!event.shiftKey) uiUtils.clearSelection();
+        }
       }
     };
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (isSelecting) updateSelection(event);
+      if (isPanning) updatePan(event);
+      else if (isSelecting) updateSelection(event);
     };
 
-    const handleMouseUp = (event: MouseEvent) => {
-      if (isSelecting) finishSelection(event);
+    const handleMouseUp = (_event: MouseEvent) => {
+      if (isPanning) endPan();
+      else if (isSelecting) finishSelection(_event);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -95,6 +140,30 @@
     };
   });
 
+  // --- Pan tool ---
+  function startPan(event: MouseEvent) {
+    if (!canvasElement) return;
+    isPanning = true;
+    panStart = { x: event.clientX, y: event.clientY };
+    panScrollStart = {
+      left: canvasElement.scrollLeft,
+      top: canvasElement.scrollTop,
+    };
+  }
+
+  function updatePan(event: MouseEvent) {
+    if (!isPanning || !canvasElement) return;
+    const deltaX = event.clientX - panStart.x;
+    const deltaY = event.clientY - panStart.y;
+    canvasElement.scrollLeft = panScrollStart.left - deltaX;
+    canvasElement.scrollTop = panScrollStart.top - deltaY;
+  }
+
+  function endPan() {
+    isPanning = false;
+  }
+
+  // --- Selection (select tool) ---
   function startSelection(event: MouseEvent) {
     if (!canvasElement) return;
     isSelecting = true;
@@ -165,8 +234,19 @@
     );
   }
 
+  // --- Add tool ---
+  function handleAddAtCursor(event: MouseEvent) {
+    if (!canvasContentElement) return;
+    const contentRect = canvasContentElement.getBoundingClientRect();
+    const x = Math.max(0, event.clientX - contentRect.left);
+    const y = Math.max(0, event.clientY - contentRect.top);
+    // Store the drop position for the wizard to use, then open the wizard
+    pendingAddPosition.set({ x, y });
+    onopenWizard?.();
+  }
+
   function handleCanvasRightClick(event: MouseEvent) {
-    if ($editMode !== "edit") return;
+    if (!isEditable) return;
     event.preventDefault();
     uiUtils.showContextMenu(event.clientX, event.clientY, { type: "canvas" });
   }
@@ -192,7 +272,7 @@
   }
 
   function handleDragOver(event: DragEvent) {
-    if ($editMode !== "edit") return;
+    if (!isEditable) return;
     event.preventDefault();
     isDragOver = true;
   }
@@ -205,7 +285,7 @@
   }
 
   function handleDrop(event: DragEvent) {
-    if ($editMode !== "edit" || !canvasContentElement) return;
+    if (!isEditable || !canvasContentElement) return;
     event.preventDefault();
     isDragOver = false;
 
@@ -263,22 +343,6 @@
     logger.debug(`[DashboardCanvas] Created widget from sensor ${sensorId}`);
   }
 
-  function toggleEditMode() {
-    editMode.update((mode) => (mode === "edit" ? "view" : "edit"));
-  }
-
-  function handleUndo() {
-    historyStore.undo();
-  }
-
-  function handleRedo() {
-    historyStore.redo();
-  }
-
-  function handleGridSizeChange(newSize: number) {
-    visualUtils.setGridSize(newSize);
-  }
-
   export function scrollToBounds(bounds: Bounds) {
     if (!canvasElement) return;
 
@@ -288,7 +352,6 @@
     const targetRight = bounds.x + bounds.width + padding;
     const targetBottom = bounds.y + bounds.height + padding;
 
-    // Only scroll if the target is outside the current viewport
     const viewportWidth = canvasElement.clientWidth;
     const viewportHeight = canvasElement.clientHeight;
 
@@ -317,17 +380,31 @@
       : null,
   );
 
-  const canUndo = $derived($historyStore?.currentIndex >= 0);
-  const canRedo = $derived(
-    $historyStore?.currentIndex < $historyStore?.commands.length - 1,
+  // Canvas cursor based on active tool
+  const canvasCursor = $derived(
+    isPanTool
+      ? isPanning
+        ? "grabbing"
+        : "grab"
+      : isAddTool
+        ? "copy"
+        : currentTool === "select"
+          ? "default"
+          : "default",
   );
+
+  // Widgets are interactive only in select / move / add modes
+  const widgetsInteractive = $derived(!isPanTool);
 </script>
 
 <div
   bind:this={canvasElement}
-  class="dashboard-canvas w-full h-full relative overflow-auto bg-[var(--theme-background)] cursor-default"
-  class:cursor-crosshair={$editMode === "edit"}
+  class="dashboard-canvas w-full h-full relative overflow-auto bg-[var(--theme-background)]"
+  class:cursor-grab={isPanTool && !isPanning}
+  class:cursor-grabbing={isPanning}
+  class:cursor-copy={isAddTool}
   class:drag-over={isDragOver}
+  style:cursor={canvasCursor}
   role="application"
   aria-label="Dashboard canvas"
   oncontextmenu={handleCanvasRightClick}
@@ -348,71 +425,66 @@
         class="empty-state absolute inset-0 flex items-center justify-center p-8"
       >
         <div
-          class="empty-state-card max-w-md text-center p-8 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-lg"
+          class="glass-panel-elevated empty-state-card max-w-md text-center p-10 rounded-2xl"
         >
-          <MousePointer2
-            size={48}
-            class="mx-auto mb-4 text-[var(--theme-primary)]"
-          />
+          <div
+            class="flex items-center justify-center w-16 h-16 rounded-2xl mx-auto mb-5 bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
+            style="box-shadow: 0 0 24px rgba(var(--theme-primary-rgb), 0.3);"
+          >
+            <MousePointer2 size={32} />
+          </div>
           <h3 class="text-lg font-semibold text-[var(--theme-text)] mb-2">
-            No widgets yet
+            Your canvas is empty
           </h3>
           <p class="text-sm text-[var(--theme-text-muted)] mb-6">
-            {#if $editMode === "edit"}
-              Drag sensors from the sidebar onto the canvas, or add your first
-              widget from the sensor list.
-            {:else}
-              Switch to Edit mode to add sensors and build your dashboard.
-            {/if}
+            Use the <span class="font-medium text-[var(--theme-text)]">Add</span
+            >
+            tool or drag sensors from the sensor panel to start building your dashboard.
           </p>
           <div class="flex items-center justify-center gap-3 flex-wrap">
-            {#if $editMode === "edit"}
-              <button
-                class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
-                onclick={() => onopenLeftSidebar?.()}
-              >
-                <Plus size={16} />
-                Open Sensor List
-              </button>
-              <button
-                class="px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-md hover:bg-[var(--theme-primary)]/10 transition-colors flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
-                onclick={() => onopenWizard?.()}
-              >
-                <Sparkles size={16} />
-                Add Widget Wizard
-              </button>
-            {:else}
-              <button
-                class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
-                onclick={toggleEditMode}
-              >
-                Switch to Edit Mode
-              </button>
-            {/if}
+            <button
+              class="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-lg hover:opacity-90 transition-opacity flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
+              onclick={() => onopenLeftSidebar?.()}
+            >
+              <Plus size={16} />
+              Open Sensor Panel
+            </button>
+            <button
+              class="px-4 py-2 border border-[var(--theme-primary)] text-[var(--theme-primary)] rounded-lg hover:bg-[var(--theme-primary)]/10 transition-colors flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-background)]"
+              onclick={() => onopenWizard?.()}
+            >
+              <Sparkles size={16} />
+              Add Widget Wizard
+            </button>
           </div>
         </div>
       </div>
     {/if}
 
     <!-- Widgets -->
-    {#each $widgetArray as widget (widget.id)}
-      <WidgetContainer
-        {widget}
-        onwidgetUpdated={handleWidgetUpdated}
-        onwidgetSelected={handleWidgetSelected}
-        onwidgetContextMenu={handleWidgetContextMenu}
-        onwidgetDelete={handleWidgetDelete}
-      />
-    {/each}
+    <div
+      class="widget-layer"
+      data-tool={currentTool}
+      class:pointer-events-none={!widgetsInteractive}
+    >
+      {#each $widgetArray as widget (widget.id)}
+        <WidgetContainer
+          {widget}
+          onwidgetUpdated={handleWidgetUpdated}
+          onwidgetSelected={handleWidgetSelected}
+          onwidgetContextMenu={handleWidgetContextMenu}
+          onwidgetDelete={handleWidgetDelete}
+        />
+      {/each}
+    </div>
 
     <!-- Snap guides -->
     <SnapGuides guides={$activeSnapGuides} />
 
-    <!-- Selection rectangle -->
-    {#if selectionRect && $editMode === "edit"}
+    <!-- Selection rectangle (select tool only) -->
+    {#if selectionRect && currentTool === "select"}
       <div
         class="selection-rectangle absolute border-2 border-[var(--theme-primary)] bg-[var(--theme-primary)]/20 pointer-events-none rounded"
-        style=""
         style:left="{selectionRect.left}px"
         style:top="{selectionRect.top}px"
         style:width="{selectionRect.width}px"
@@ -420,80 +492,12 @@
       ></div>
     {/if}
 
-    <!-- Grid overlay -->
-    {#if $editMode === "edit" && $visualSettings.show_grid}
+    <!-- Grid overlay (visible whenever grid is toggled on) -->
+    {#if $visualSettings.show_grid}
       <div
-        class="grid-overlay absolute inset-0 pointer-events-none opacity-30"
+        class="grid-overlay absolute inset-0 pointer-events-none opacity-40"
         style="--grid-size: {$visualSettings.grid_size}px"
       ></div>
-    {/if}
-
-    <!-- Floating canvas toolbar -->
-    {#if $editMode === "edit"}
-      <div
-        class="canvas-toolbar absolute bottom-4 right-4 flex items-center gap-1 p-2 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-surface)] shadow-lg"
-      >
-        <button
-          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-          class:text-[var(--theme-primary)]={$visualSettings.show_grid}
-          onclick={() => visualUtils.toggleGrid()}
-          title={$visualSettings.show_grid ? "Hide grid" : "Show grid"}
-          aria-label={$visualSettings.show_grid ? "Hide grid" : "Show grid"}
-        >
-          <Grid3X3 size={16} />
-        </button>
-
-        <button
-          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
-          class:text-[var(--theme-primary)]={$visualSettings.snap_to_grid}
-          onclick={() => visualUtils.toggleSnap()}
-          title={$visualSettings.snap_to_grid ? "Disable snap" : "Enable snap"}
-          aria-label={$visualSettings.snap_to_grid
-            ? "Disable snap"
-            : "Enable snap"}
-        >
-          <Magnet size={16} />
-        </button>
-
-        <div class="h-6 w-px bg-[var(--theme-border)] mx-1"></div>
-
-        <select
-          class="h-8 px-2 text-xs bg-[var(--theme-background)] border border-[var(--theme-border)] rounded text-[var(--theme-text)] focus:ring-2 focus:ring-[var(--theme-primary)]"
-          value={$visualSettings.grid_size}
-          onchange={(e) =>
-            handleGridSizeChange(parseInt(e.currentTarget.value))}
-          title="Grid size"
-          aria-label="Grid size"
-        >
-          <option value={1}>1px</option>
-          <option value={5}>5px</option>
-          <option value={10}>10px</option>
-          <option value={20}>20px</option>
-          <option value={50}>50px</option>
-        </select>
-
-        <div class="h-6 w-px bg-[var(--theme-border)] mx-1"></div>
-
-        <button
-          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-40"
-          disabled={!canUndo}
-          onclick={handleUndo}
-          title="Undo (Ctrl+Z)"
-          aria-label="Undo"
-        >
-          <RotateCcw size={16} />
-        </button>
-
-        <button
-          class="p-2 rounded-md text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] hover:bg-[var(--theme-background)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] disabled:opacity-40"
-          disabled={!canRedo}
-          onclick={handleRedo}
-          title="Redo (Ctrl+Shift+Z)"
-          aria-label="Redo"
-        >
-          <RotateCw size={16} />
-        </button>
-      </div>
     {/if}
   </div>
 </div>
@@ -517,14 +521,14 @@
     position: relative;
     background-image: radial-gradient(
       circle at 1px 1px,
-      rgba(var(--theme-border-rgb), 0.15) 1px,
+      rgba(var(--theme-border-rgb), 0.12) 1px,
       transparent 0
     );
-    background-size: 20px 20px;
+    background-size: 24px 24px;
   }
 
   .drag-over .canvas-content {
-    background-color: rgba(var(--theme-primary-rgb), 0.05);
+    background-color: rgba(var(--theme-primary-rgb), 0.06);
   }
 
   .empty-state {
@@ -535,6 +539,16 @@
     pointer-events: auto;
   }
 
+  .widget-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+  }
+
+  .widget-layer.pointer-events-none {
+    pointer-events: none;
+  }
+
   .selection-rectangle {
     backdrop-filter: blur(1px);
     animation: selection-pulse 1s ease-in-out infinite alternate;
@@ -542,8 +556,16 @@
 
   .grid-overlay {
     background-image:
-      linear-gradient(to right, var(--theme-border) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--theme-border) 1px, transparent 1px);
+      linear-gradient(
+        to right,
+        rgba(var(--theme-border-rgb), 0.5) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        rgba(var(--theme-border-rgb), 0.5) 1px,
+        transparent 1px
+      );
     background-size: var(--grid-size) var(--grid-size);
   }
 
@@ -554,7 +576,7 @@
   .grid-overlay[style*="--grid-size: 5px"] {
     background-image: radial-gradient(
       circle,
-      var(--theme-border) 0.5px,
+      rgba(var(--theme-border-rgb), 0.5) 0.5px,
       transparent 0.5px
     );
   }
@@ -562,10 +584,6 @@
   .grid-overlay {
     will-change: background-size;
     contain: style layout;
-  }
-
-  .canvas-toolbar {
-    z-index: 1000;
   }
 
   @keyframes selection-pulse {

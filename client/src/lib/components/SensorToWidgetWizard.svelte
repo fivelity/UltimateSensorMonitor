@@ -11,20 +11,20 @@
     visualSettings,
     widgetUtils,
   } from "$lib/stores";
-  import { gridLayout } from "$lib/stores/gridLayout.svelte";
+  import { pendingAddPosition } from "$lib/stores/activeTool";
   import { AddWidgetCommand, historyStore } from "$lib/stores/history";
   import type { GaugeType, WidgetConfig } from "$lib/types";
   import { snapToGrid } from "$lib/utils/geometry";
   import { Check, ChevronLeft, ChevronRight, X } from "@lucide/svelte";
   import { onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import SensorPicker from "./SensorPicker.svelte";
 
   interface Props {
     onclose?: () => void;
-    workspaceMode?: "dashboard" | "grid";
   }
 
-  const { onclose, workspaceMode = "dashboard" }: Props = $props();
+  const { onclose }: Props = $props();
 
   type WizardStep = "sensor" | "gauge" | "configure" | "place";
 
@@ -39,6 +39,17 @@
   let placementMode = $state<"center" | "pointer">("center");
   let pointerPosition = $state<{ x: number; y: number } | null>(null);
   let pointerClickHandler = $state<((event: MouseEvent) => void) | null>(null);
+
+  // If the wizard was opened via the add-tool click, pre-set the placement
+  // position so the widget is created at the clicked location.
+  {
+    const pending = get(pendingAddPosition);
+    if (pending) {
+      placementMode = "pointer";
+      pointerPosition = pending;
+      pendingAddPosition.set(null);
+    }
+  }
 
   const selectedSensor = $derived(
     $availableSensors.find((s) => s.id === selectedSensorId) || null,
@@ -89,16 +100,12 @@
     content: HTMLElement;
   } | null {
     const outer = document.querySelector(
-      workspaceMode === "grid"
-        ? "[data-grid-canvas]"
-        : "[data-dashboard-canvas]",
+      "[data-dashboard-canvas]",
     ) as HTMLElement | null;
     if (!outer) return null;
 
     const content = outer.querySelector(
-      workspaceMode === "grid"
-        ? "[data-grid-canvas-content]"
-        : "[data-dashboard-canvas-content]",
+      "[data-dashboard-canvas-content]",
     ) as HTMLElement | null;
     if (!content) return null;
 
@@ -106,12 +113,6 @@
   }
 
   function snapPosition(x: number, y: number): { x: number; y: number } {
-    if (workspaceMode === "grid") {
-      return {
-        x: gridLayout.snapX(Math.max(0, x)),
-        y: gridLayout.snapY(Math.max(0, y)),
-      };
-    }
     const settings = $visualSettings;
     if (settings.snap_to_grid && settings.grid_size > 0) {
       return {
@@ -123,10 +124,11 @@
   }
 
   function snapSize(w: number, h: number): { width: number; height: number } {
-    if (workspaceMode === "grid") {
+    const settings = $visualSettings;
+    if (settings.snap_to_grid && settings.grid_size > 0) {
       return {
-        width: gridLayout.snapWidth(w),
-        height: gridLayout.snapHeight(h),
+        width: snapToGrid(w, settings.grid_size),
+        height: snapToGrid(h, settings.grid_size),
       };
     }
     return { width: w, height: h };
@@ -617,14 +619,18 @@
         {/if}
         <button
           type="button"
-          onclick={currentStep === "place" && placementMode === "pointer"
+          onclick={currentStep === "place" &&
+          placementMode === "pointer" &&
+          !pointerPosition
             ? handlePointerPlacement
             : nextStep}
           disabled={!canProceed}
           class="px-4 py-2 text-sm bg-[var(--theme-primary)] text-[var(--theme-background)] rounded-md hover:opacity-90 disabled:opacity-40 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] flex items-center gap-1"
         >
           {#if currentStep === "place"}
-            {placementMode === "pointer" ? "Click to Place" : "Create Widget"}
+            {placementMode === "pointer" && !pointerPosition
+              ? "Click to Place"
+              : "Create Widget"}
           {:else}
             Next
             <ChevronRight size={16} />

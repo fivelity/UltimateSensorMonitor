@@ -1,11 +1,11 @@
 <script lang="ts">
   import {
     dashboardInteraction,
-    editMode,
     inspectorStore,
     selectedWidgets,
     widgetGroups,
   } from "$lib/stores";
+  import { activeTool } from "$lib/stores/activeTool";
   import type { WidgetConfig } from "$lib/types";
 
   import ResizeHandles from "./ResizeHandles.svelte";
@@ -35,10 +35,12 @@
       $selectedWidgets.ids.includes(widget.id),
   );
   const isLocked = $derived(widget.is_locked);
-  const showControls = $derived(
-    $editMode === "edit" && isSelected && !isLocked,
+  // Widgets are interactive in select / move / add modes (not pan)
+  const currentTool = $derived($activeTool);
+  const canEdit = $derived(
+    currentTool === "select" || currentTool === "move" || currentTool === "add",
   );
-  const canEdit = $derived($editMode === "edit");
+  const showControls = $derived(canEdit && isSelected && !isLocked);
   const isDragging = $derived(
     $dashboardInteraction.mode === "dragging" &&
       $dashboardInteraction.activeWidgetIds.includes(widget.id),
@@ -215,6 +217,11 @@
   }
 
   .widget-edit-mode {
+    cursor: pointer;
+  }
+
+  /* Move tool: widgets show a move cursor */
+  :global(.widget-layer[data-tool="move"]) .widget-edit-mode {
     cursor: move;
   }
 

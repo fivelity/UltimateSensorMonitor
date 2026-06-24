@@ -1,6 +1,12 @@
 // Store Exports - Centralized and Modular
 // This file provides clean access to all stores while maintaining backward compatibility
 
+// Active tool (redesigned toolbar: select / move / pan / add)
+export {
+    TOOL_DEFINITIONS,
+    TOOL_ORDER, activeTool, pendingAddPosition, type ToolDefinition, type ToolId
+} from "./activeTool.js";
+
 // Core UI Stores
 export {
     contextMenu,

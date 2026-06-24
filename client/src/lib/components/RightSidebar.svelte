@@ -97,7 +97,7 @@
 
 <div
   bind:this={sidebarElement}
-  class="h-full flex flex-col bg-[var(--theme-surface)] border-l border-[var(--theme-border)] relative"
+  class="glass-panel h-full flex flex-col rounded-l-2xl border-l border-y border-[var(--glass-border)] relative"
 >
   <!-- Resize handle -->
   <div
@@ -110,13 +110,13 @@
 
   <!-- Header -->
   <div
-    class="flex items-center justify-between p-4 border-b border-[var(--theme-border)]"
+    class="flex items-center justify-between p-4 border-b border-[var(--glass-border)]"
   >
     <h2 class="text-lg font-semibold text-[var(--theme-text)]">Properties</h2>
     <button
       type="button"
       onclick={() => onclose?.()}
-      class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
+      class="p-1.5 rounded-lg hover:bg-white/10 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
       title="Close Properties Panel"
       aria-label="Close Properties Panel"
     >
@@ -125,25 +125,24 @@
   </div>
 
   <!-- Tab Navigation -->
-  <div class="flex border-b border-[var(--theme-border)]">
+  <div class="flex border-b border-[var(--glass-border)]">
     {#each tabs as tab}
       {@const badge = getTabBadge(tab.id)}
       <button
         type="button"
-        class="flex-1 px-3 py-2 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary)] flex items-center justify-center gap-1.5"
-        class:bg-[var(--theme-background)]={activeTab === tab.id}
+        class="flex-1 px-3 py-2.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--theme-primary)] flex items-center justify-center gap-1.5"
         class:text-[var(--theme-text)]={activeTab === tab.id}
         class:border-b-2={activeTab === tab.id}
         class:border-[var(--theme-primary)]={activeTab === tab.id}
         class:text-[var(--theme-text-muted)]={activeTab !== tab.id}
-        class:hover:bg-[var(--theme-background)]={activeTab !== tab.id}
+        class:hover-glass={activeTab !== tab.id}
         class:hover:text-[var(--theme-text)]={activeTab !== tab.id}
         onclick={() => handleTabClick(tab.id)}
       >
         {tab.label}
         {#if badge !== null}
           <span
-            class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]"
+            class="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--theme-primary)]/15 text-[var(--theme-primary)]"
           >
             {badge}
           </span>
@@ -166,4 +165,7 @@
 
 <style>
   /* RightSidebar uses theme tokens only */
+  .hover-glass:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
 </style>

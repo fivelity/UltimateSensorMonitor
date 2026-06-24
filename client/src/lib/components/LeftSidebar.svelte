@@ -5,9 +5,9 @@
   } from "$lib/constants/gauges";
   import {
     availableSensors,
-    gridLayout,
     inspectorStore,
     sensorData,
+    visualSettings,
     widgetUtils,
   } from "$lib/stores";
   import { AddWidgetCommand, historyStore } from "$lib/stores/history";
@@ -17,6 +17,7 @@
     StyleSettings,
     WidgetConfig,
   } from "$lib/types";
+  import { snapToGrid } from "$lib/utils/geometry";
   import {
     ChevronDown,
     ChevronRight,
@@ -30,17 +31,16 @@
     X,
     Zap,
   } from "@lucide/svelte";
+  import { get } from "svelte/store";
   import SearchInput from "./SearchInput.svelte";
   import SensorAddPopover from "./SensorAddPopover.svelte";
 
   const {
     onclose,
     onopenWizard,
-    workspaceMode = "dashboard",
   }: {
     onclose?: () => void;
     onopenWizard?: () => void;
-    workspaceMode?: "dashboard" | "grid";
   } = $props();
 
   // Sensor inventory search
@@ -173,11 +173,13 @@
     const meta = gaugeTypeMetadata[gaugeType];
     const size = { width: meta.defaultWidth, height: meta.defaultHeight };
 
-    if (workspaceMode === "grid") {
-      pos.x = gridLayout.snapX(pos.x);
-      pos.y = gridLayout.snapY(pos.y);
-      size.width = gridLayout.snapWidth(size.width);
-      size.height = gridLayout.snapHeight(size.height);
+    // Unified canvas: snap to grid when snap is enabled in visual settings
+    const settings = get(visualSettings);
+    if (settings.snap_to_grid && settings.grid_size > 0) {
+      pos.x = snapToGrid(pos.x, settings.grid_size);
+      pos.y = snapToGrid(pos.y, settings.grid_size);
+      size.width = snapToGrid(size.width, settings.grid_size);
+      size.height = snapToGrid(size.height, settings.grid_size);
     }
 
     const widget: WidgetConfig = {
@@ -255,17 +257,19 @@
   }
 </script>
 
-<div class="sidebar-content h-full flex flex-col bg-[var(--theme-surface)]">
+<div
+  class="sidebar-content glass-panel h-full flex flex-col rounded-r-2xl border-r border-y border-[var(--glass-border)]"
+>
   <!-- Header -->
   <div
-    class="flex items-center justify-between p-4 border-b border-[var(--theme-border)]"
+    class="flex items-center justify-between p-4 border-b border-[var(--glass-border)]"
   >
     <h2 class="font-semibold text-[var(--theme-text)]">Sensor Inventory</h2>
     <div class="flex items-center gap-1">
       <button
         type="button"
         onclick={() => onopenWizard?.()}
-        class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-primary)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
+        class="p-1.5 rounded-lg hover:bg-white/10 text-[var(--theme-primary)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         title="Add widget wizard"
         aria-label="Add widget wizard"
       >
@@ -274,7 +278,7 @@
       <button
         type="button"
         onclick={() => onclose?.()}
-        class="p-1 rounded hover:bg-[var(--theme-background)] text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:ring-offset-2 focus:ring-offset-[var(--theme-surface)]"
+        class="p-1.5 rounded-lg hover:bg-white/10 text-[var(--theme-text-muted)] hover:text-[var(--theme-text)] transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)]"
         title="Close panel"
         aria-label="Close panel"
       >

@@ -2,7 +2,7 @@
   import ConnectionStatus from "$lib/components/ConnectionStatus.svelte";
   import ContextMenu from "$lib/components/ContextMenu.svelte";
   import DashboardCanvas from "$lib/components/DashboardCanvas.svelte";
-  import GridCanvas from "$lib/components/GridCanvas.svelte";
+  import FloatingToolbar from "$lib/components/FloatingToolbar.svelte";
   import LeftSidebar from "$lib/components/LeftSidebar.svelte";
   import RightSidebar from "$lib/components/RightSidebar.svelte";
   import SensorToWidgetWizard from "$lib/components/SensorToWidgetWizard.svelte";
@@ -12,9 +12,10 @@
   import {
     availableSensors,
     contextMenu,
-    editMode,
     inspectorStore,
     sensorUtils,
+    showLeftSidebar,
+    showRightSidebar,
     uiUtils,
     visualUtils,
     widgetArray,
@@ -30,9 +31,6 @@
   import { RefreshCw } from "@lucide/svelte";
   import { onMount } from "svelte";
 
-  let showLeftSidebar = $state(false);
-  let showRightSidebar = $state(false);
-  let workspaceMode = $state<"dashboard" | "grid">("dashboard");
   let showWizard = $state(false);
   let hasInitialized = $state(false);
   let leftSidebarComponent: {
@@ -65,9 +63,8 @@
         logger.debug("[App] Configuration loaded:", config);
 
         // Set UI defaults from config
-        showLeftSidebar = config.ui.autoOpenLeftSidebar;
-        showRightSidebar = config.ui.autoOpenRightSidebar;
-        editMode.set(config.ui.defaultEditMode);
+        uiUtils.setLeftSidebar(config.ui.autoOpenLeftSidebar);
+        uiUtils.setRightSidebar(config.ui.autoOpenRightSidebar);
 
         // Initialize visual settings from config
         visualUtils.updateSettings({
@@ -286,18 +283,6 @@
     }
   }
 
-  function toggleLeftSidebar() {
-    showLeftSidebar = !showLeftSidebar;
-  }
-
-  function toggleRightSidebar() {
-    showRightSidebar = !showRightSidebar;
-  }
-
-  function toggleWorkspaceMode() {
-    workspaceMode = workspaceMode === "dashboard" ? "grid" : "dashboard";
-  }
-
   function openWizard() {
     showWizard = true;
   }
@@ -318,8 +303,8 @@
   function handleFindInSidebar(sensorId: string) {
     logger.debug("[App] Looking for sensor in sidebar:", sensorId);
 
-    if (!showLeftSidebar) {
-      showLeftSidebar = true;
+    if (!$showLeftSidebar) {
+      uiUtils.setLeftSidebar(true);
     }
 
     setTimeout(() => {
@@ -370,57 +355,64 @@
   <div
     class="flex flex-col h-screen overflow-hidden bg-[var(--theme-background)]"
   >
-    <!-- Top Bar -->
-    <TopBar
-      ontoggleLeftSidebar={toggleLeftSidebar}
-      ontoggleRightSidebar={toggleRightSidebar}
-      ontoggleWorkspace={toggleWorkspaceMode}
-      {showLeftSidebar}
-      {showRightSidebar}
-      {workspaceMode}
-    />
+    <!-- Top Bar (slim, glassmorphic) -->
+    <TopBar />
 
-    <!-- Main Content Area -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Left Sidebar -->
-      {#if showLeftSidebar}
+    <!-- Main Content Area: full-width canvas with overlay sidebars -->
+    <div class="flex-1 relative overflow-hidden">
+      <!-- Dashboard Canvas (unified — no more grid/dashboard mode split) -->
+      <DashboardCanvas
+        bind:this={dashboardCanvas}
+        onopenLeftSidebar={() => uiUtils.setLeftSidebar(true)}
+        onopenWizard={openWizard}
+      />
+
+      <!-- Shared click-away backdrop for overlay sidebars -->
+      {#if $showLeftSidebar || $showRightSidebar}
+        <button
+          type="button"
+          class="absolute inset-0 z-30 bg-black/30 backdrop-blur-[2px] cursor-default"
+          aria-label="Close panels"
+          tabindex="-1"
+          onclick={() => {
+            uiUtils.setLeftSidebar(false);
+            uiUtils.setRightSidebar(false);
+          }}
+        ></button>
+      {/if}
+
+      <!-- Left Sidebar — overlay drawer (slides over canvas) -->
+      {#if $showLeftSidebar}
         <div
-          class="w-80 border-r border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300"
+          class="absolute top-0 left-0 bottom-0 z-40 w-80 max-w-[85vw] animate-slide-in-left"
+          role="complementary"
+          aria-label="Sensor inventory panel"
         >
           <LeftSidebar
             bind:this={leftSidebarComponent}
-            onclose={() => (showLeftSidebar = false)}
+            onclose={() => uiUtils.setLeftSidebar(false)}
             onopenWizard={openWizard}
-            {workspaceMode}
           />
         </div>
       {/if}
 
-      <!-- Dashboard Canvas -->
-      <div class="flex-1 relative overflow-hidden">
-        {#if workspaceMode === "grid"}
-          <GridCanvas />
-        {:else}
-          <DashboardCanvas
-            bind:this={dashboardCanvas}
-            onopenLeftSidebar={toggleLeftSidebar}
-            onopenWizard={openWizard}
-          />
-        {/if}
-      </div>
-
-      <!-- Right Sidebar -->
-      {#if showRightSidebar}
+      <!-- Right Sidebar — overlay drawer (slides over canvas) -->
+      {#if $showRightSidebar}
         <div
-          class="shrink-0 border-l border-[var(--theme-border)] bg-[var(--theme-surface)] transition-all duration-300"
+          class="absolute top-0 right-0 bottom-0 z-40 animate-slide-in-right"
+          role="complementary"
+          aria-label="Properties panel"
           style:width="{$inspectorStore.rightSidebarWidth}px"
         >
           <RightSidebar
-            onclose={() => (showRightSidebar = false)}
+            onclose={() => uiUtils.setRightSidebar(false)}
             onlocateGroup={handleLocateGroup}
           />
         </div>
       {/if}
+
+      <!-- Floating Toolbar (pill-shaped, anchored bottom-center) -->
+      <FloatingToolbar />
     </div>
 
     <!-- Context Menu -->
@@ -435,10 +427,42 @@
     {/if}
 
     {#if showWizard}
-      <SensorToWidgetWizard onclose={closeWizard} {workspaceMode} />
+      <SensorToWidgetWizard onclose={closeWizard} />
     {/if}
 
     <!-- Connection Status Indicator -->
     <ConnectionStatus />
   </div>
 {/if}
+
+<style>
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in-left {
+    animation: slide-in-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+</style>

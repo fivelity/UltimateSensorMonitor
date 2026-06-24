@@ -367,20 +367,6 @@
         onopenWizard={openWizard}
       />
 
-      <!-- Shared click-away backdrop for overlay sidebars -->
-      {#if $showLeftSidebar || $showRightSidebar}
-        <button
-          type="button"
-          class="absolute inset-0 z-30 bg-black/30 backdrop-blur-[2px] cursor-default"
-          aria-label="Close panels"
-          tabindex="-1"
-          onclick={() => {
-            uiUtils.setLeftSidebar(false);
-            uiUtils.setRightSidebar(false);
-          }}
-        ></button>
-      {/if}
-
       <!-- Left Sidebar — overlay drawer (slides over canvas) -->
       {#if $showLeftSidebar}
         <div

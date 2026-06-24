@@ -1,4 +1,4 @@
-import { editMode, selectedWidgets, uiUtils, visualSettings, widgets } from "$lib/stores";
+import { editMode, selectedWidgets, showLeftSidebar, showRightSidebar, uiUtils, visualSettings, widgets } from "$lib/stores";
 import { widgetUtils } from "$lib/stores/data/widgets";
 import { AddWidgetCommand, BatchCommand, MoveWidgetCommand, RemoveWidgetCommand, historyStore } from "$lib/stores/history";
 import { roundToPrecision } from "$lib/utils/geometry";
@@ -132,6 +132,25 @@ function selectAllWidgets(): void {
 }
 
 export function handleKeyboardShortcut(event: KeyboardEvent): void {
+  // Escape works in any mode: close overlay sidebars, then clear selection.
+  // Skip when focus is inside an input/textarea so in-field Escape is preserved.
+  if (event.key === "Escape" && !isEditableTarget(event.target)) {
+    const leftOpen = get(showLeftSidebar);
+    const rightOpen = get(showRightSidebar);
+    if (leftOpen || rightOpen) {
+      event.preventDefault();
+      if (leftOpen) showLeftSidebar.set(false);
+      if (rightOpen) showRightSidebar.set(false);
+      return;
+    }
+    if (get(dashboardInteraction).mode === "idle") {
+      event.preventDefault();
+      uiUtils.clearSelection();
+      uiUtils.hideContextMenu();
+      return;
+    }
+  }
+
   if (get(editMode) !== "edit") return;
   if (isEditableTarget(event.target)) return;
   if (get(dashboardInteraction).mode !== "idle") return;
@@ -169,14 +188,6 @@ export function handleKeyboardShortcut(event: KeyboardEvent): void {
   if (isCtrl && event.key === "d") {
     event.preventDefault();
     duplicateSelectedWidgets();
-    return;
-  }
-
-  // Clear selection
-  if (event.key === "Escape") {
-    event.preventDefault();
-    uiUtils.clearSelection();
-    uiUtils.hideContextMenu();
     return;
   }
 

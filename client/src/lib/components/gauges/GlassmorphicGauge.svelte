@@ -1,6 +1,9 @@
 <script lang="ts">
   import { visualSettings } from "$lib/stores";
   import type { SensorData, WidgetConfig } from "$lib/types";
+  import { arc as d3Arc } from "d3-shape";
+  import { cubicOut } from "svelte/easing";
+  import { tweened } from "svelte/motion";
 
   const {
     widget,
@@ -8,9 +11,9 @@
   }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   // Gauge settings with defaults
-  const glow_intensity = $derived(widget.gauge_settings.glow_intensity || 0.5);
-  const blur_level = $derived(widget.gauge_settings.blur_level || 0.3);
-  const transparency = $derived(widget.gauge_settings.transparency || 0.8);
+  const glow_intensity = $derived(widget.gauge_settings.glow_intensity ?? 0.5);
+  const blur_level = $derived(widget.gauge_settings.blur_level ?? 0.3);
+  const transparency = $derived(widget.gauge_settings.transparency ?? 0.8);
   const gauge_style = $derived(widget.gauge_settings.style || "radial");
 
   // Data processing
@@ -20,15 +23,15 @@
   const unit = $derived(widget.custom_unit || sensorData?.unit || "");
   const displayValue = $derived(sensorData?.value ?? "--");
   const minValue = $derived(
-    widget.gauge_settings.min_value || sensorData?.min_value || 0,
+    widget.gauge_settings.min_value ?? sensorData?.min_value ?? 0,
   );
   const maxValue = $derived(
-    widget.gauge_settings.max_value || sensorData?.max_value || 100,
+    widget.gauge_settings.max_value ?? sensorData?.max_value ?? 100,
   );
 
   // Calculate normalized value (0-1)
   const normalizedValue = $derived(
-    typeof displayValue === "number"
+    typeof displayValue === "number" && maxValue !== minValue
       ? Math.max(
           0,
           Math.min(1, (displayValue - minValue) / (maxValue - minValue)),
@@ -55,46 +58,14 @@
         : "var(--theme-danger-rgb)",
   );
 
-  // Animation values
-  let animationProgress = $state(0);
-
+  // Single tweened store replaces the two competing rAF loops
+  const animProgress = tweened(0, { duration: 600, easing: cubicOut });
   $effect(() => {
-    // Animate to current value on mount
-    let mountedValue = 0;
-    const animate = () => {
-      if (mountedValue < normalizedValue) {
-        mountedValue = Math.min(mountedValue + 0.02, normalizedValue);
-        animationProgress = mountedValue;
-        requestAnimationFrame(animate);
-      } else {
-        animationProgress = normalizedValue;
-      }
-    };
-    animate();
+    animProgress.set(normalizedValue);
   });
 
-  // Update animation when value changes
-  $effect(() => {
-    if (typeof normalizedValue === "number") {
-      const targetValue = normalizedValue;
-      const currentValue = animationProgress;
-      const diff = targetValue - currentValue;
-
-      if (Math.abs(diff) > 0.01) {
-        const animate = () => {
-          const step = diff * 0.1;
-          animationProgress += step;
-
-          if (Math.abs(targetValue - animationProgress) > 0.01) {
-            requestAnimationFrame(animate);
-          } else {
-            animationProgress = targetValue;
-          }
-        };
-        animate();
-      }
-    }
-  });
+  // Keep template variable name consistent with previous template references
+  const animationProgress = $derived($animProgress);
 
   // Respond to global materiality/blur settings
   const effectiveBlur = $derived(
@@ -102,6 +73,44 @@
   );
   const effectiveTransparency = $derived(
     $visualSettings.materiality * transparency,
+  );
+
+  // ── Arc style helpers (for gauge_style === "arc") ──────────────────────────
+  function toRad(deg: number) {
+    return deg * (Math.PI / 180);
+  }
+
+  function makeArcPath(
+    startDeg: number,
+    endDeg: number,
+    iR: number,
+    oR: number,
+  ): string {
+    const gen = d3Arc();
+    return (
+      gen({
+        innerRadius: iR,
+        outerRadius: oR,
+        startAngle: toRad(startDeg),
+        endAngle: toRad(endDeg),
+        padAngle: 0,
+        cornerRadius: 3,
+      } as Parameters<typeof gen>[0]) ?? ""
+    );
+  }
+
+  const arcStartDeg = -135;
+  const arcEndDeg = 135;
+  const arcTotalSweep = arcEndDeg - arcStartDeg;
+  const arcProgressDeg = $derived(
+    arcStartDeg + animationProgress * arcTotalSweep,
+  );
+
+  const arcTrackPath = $derived(makeArcPath(arcStartDeg, arcEndDeg, 36, 48));
+  const arcFillPath = $derived(
+    animationProgress > 0.005
+      ? makeArcPath(arcStartDeg, arcProgressDeg, 36, 48)
+      : "",
   );
 </script>
 
@@ -238,6 +247,68 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    {:else if gauge_style === "arc"}
+      <!-- Arc Gauge (glassmorphic SVG arc with glow) -->
+      <div class="arc-gauge">
+        <svg viewBox="0 0 120 120" class="gauge-svg">
+          <defs>
+            <filter
+              id="glass-arc-glow"
+              x="-30%"
+              y="-30%"
+              width="160%"
+              height="160%"
+            >
+              <feGaussianBlur
+                in="SourceGraphic"
+                stdDeviation={glow_intensity * 4}
+                result="blur"
+              />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <g transform="translate(60,60)">
+            <!-- Track -->
+            <path d={arcTrackPath} fill="rgba(var(--theme-border-rgb), 0.12)" />
+            <!-- Glow layer -->
+            {#if arcFillPath}
+              <path
+                d={arcFillPath}
+                fill={valueColor}
+                opacity="0.25"
+                style="filter: blur({glow_intensity * 6}px);"
+              />
+            {/if}
+            <!-- Fill -->
+            {#if arcFillPath}
+              <path
+                d={arcFillPath}
+                fill={valueColor}
+                style="filter: drop-shadow(0 0 {glow_intensity *
+                  5}px rgba({glowColor}, {glow_intensity}));"
+              />
+            {/if}
+          </g>
+        </svg>
+
+        <!-- Center Value -->
+        <div class="center-value">
+          <div
+            class="value-text"
+            style="color: {valueColor}; text-shadow: 0 0 {glow_intensity *
+              12}px rgba({glowColor}, {glow_intensity});"
+          >
+            {displayValue}
+          </div>
+          {#if widget.show_unit && unit}
+            <div class="unit-text">{unit}</div>
+          {/if}
         </div>
       </div>
     {/if}
@@ -442,6 +513,14 @@
     font-size: 0.7rem;
     color: var(--theme-text);
     font-weight: 600;
+  }
+
+  /* Arc Gauge Styles */
+  .arc-gauge {
+    position: relative;
+    width: 100%;
+    max-width: 120px;
+    aspect-ratio: 1;
   }
 
   /* Particle Effects */

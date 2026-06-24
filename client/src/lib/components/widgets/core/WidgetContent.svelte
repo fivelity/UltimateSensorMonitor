@@ -4,11 +4,15 @@
   import { logger } from "$lib/utils/logger";
   import { AlertTriangle, BarChart3 } from "@lucide/svelte";
   // Import gauge components from existing location
+  import DonutRingGauge from "$lib/components/gauges/DonutRingGauge.svelte";
   import GlassmorphicGauge from "$lib/components/gauges/GlassmorphicGauge.svelte";
   import GraphGauge from "$lib/components/gauges/GraphGauge.svelte";
   import ImageSequenceGauge from "$lib/components/gauges/ImageSequenceGauge.svelte";
   import LinearGauge from "$lib/components/gauges/LinearGauge.svelte";
   import RadialGauge from "$lib/components/gauges/RadialGauge.svelte";
+  import SegmentedArcGauge from "$lib/components/gauges/SegmentedArcGauge.svelte";
+  import SparkBarGauge from "$lib/components/gauges/SparkBarGauge.svelte";
+  import SpeedDialGauge from "$lib/components/gauges/SpeedDialGauge.svelte";
   import TextGauge from "$lib/components/gauges/TextGauge.svelte";
 
   const { widget }: { widget: WidgetConfig } = $props();
@@ -63,6 +67,14 @@
       <ImageSequenceGauge {widget} sensorData={displayData} />
     {:else if widget.gauge_type === "glassmorphic"}
       <GlassmorphicGauge {widget} sensorData={displayData} />
+    {:else if widget.gauge_type === "segmented_arc"}
+      <SegmentedArcGauge {widget} sensorData={displayData} />
+    {:else if widget.gauge_type === "speed_dial"}
+      <SpeedDialGauge {widget} sensorData={displayData} />
+    {:else if widget.gauge_type === "spark_bar"}
+      <SparkBarGauge {widget} sensorData={displayData} />
+    {:else if widget.gauge_type === "donut_ring"}
+      <DonutRingGauge {widget} sensorData={displayData} />
     {:else}
       <!-- Fallback for unknown gauge types -->
       <div class="flex items-center justify-center h-full text-center p-4">

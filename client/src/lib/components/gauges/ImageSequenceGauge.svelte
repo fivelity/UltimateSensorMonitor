@@ -9,7 +9,7 @@
   }: { widget: WidgetConfig; sensorData: SensorData | undefined } = $props();
 
   let currentImageIndex = $state(0);
-  let images: HTMLImageElement[] = $state([]);
+  let images: (HTMLImageElement | null)[] = $state([]);
   let imagesLoaded = $state(false);
 
   // Image sequence settings with defaults
@@ -26,6 +26,7 @@
   );
   const unit = $derived(widget.custom_unit || sensorData?.unit || "");
   const displayValue = $derived(sensorData?.value ?? "--");
+  const currentImage = $derived(images[currentImageIndex] ?? null);
 
   // Calculate current image based on sensor value
   $effect(() => {
@@ -63,21 +64,32 @@
     imagesLoaded = false;
     images = [];
 
-    try {
-      const loadPromises = imageSequence.map((imageSrc: string) => {
+    const results = await Promise.allSettled(
+      imageSequence.map((imageSrc: string) => {
+        const trimmed = imageSrc.trim();
+        if (!trimmed) {
+          return Promise.reject(new Error("Empty image URL"));
+        }
         return new Promise<HTMLImageElement>((resolve, reject) => {
           const img = new Image();
           img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = imageSrc;
+          img.onerror = () =>
+            reject(new Error(`Failed to load image: ${trimmed}`));
+          img.src = trimmed;
         });
-      });
+      }),
+    );
 
-      images = await Promise.all(loadPromises);
-      imagesLoaded = true;
-    } catch (error) {
-      logger.error("Failed to load image sequence:", error);
-      imagesLoaded = false;
+    images = results.map((result) =>
+      result.status === "fulfilled" ? result.value : null,
+    );
+    imagesLoaded = true;
+
+    const failedCount = results.filter(
+      (result) => result.status === "rejected",
+    ).length;
+    if (failedCount > 0) {
+      logger.warn(`${failedCount} image(s) failed to load in sequence`);
     }
   }
 
@@ -136,10 +148,10 @@
         <Loader2 size={24} class="mx-auto mb-2 animate-spin" />
         <div class="text-xs">Loading images...</div>
       </div>
-    {:else if images[currentImageIndex]}
+    {:else if currentImage}
       <!-- Current image -->
       <img
-        src={images[currentImageIndex].src}
+        src={currentImage.src}
         alt="Sensor visualization"
         class="max-w-full max-h-full object-contain"
       />
@@ -155,6 +167,12 @@
               100}%"
           ></div>
         </div>
+      </div>
+    {:else}
+      <!-- Image failed to load or unavailable -->
+      <div class="text-center text-[var(--theme-text-muted)]">
+        <ImagePlus size={24} class="mx-auto mb-2" />
+        <div class="text-xs">Image unavailable</div>
       </div>
     {/if}
   </div>

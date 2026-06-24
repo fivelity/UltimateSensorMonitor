@@ -138,7 +138,11 @@ export type GaugeType =
   | "linear"
   | "graph"
   | "image"
-  | "glassmorphic";
+  | "glassmorphic"
+  | "segmented_arc"
+  | "speed_dial"
+  | "spark_bar"
+  | "donut_ring";
 
 export type EditMode = "view" | "edit";
 
@@ -243,6 +247,32 @@ export interface GaugeSettings {
   blur_level?: number;
   transparency?: number;
   style?: "radial" | "linear" | "ring";
+
+  // Segmented arc gauge specific
+  segment_count?: number;
+  segment_gap?: number;
+  color_mode?: "single" | "gradient" | "zone";
+  color_start?: string;
+  color_end?: string;
+  corner_radius?: number;
+
+  // Speed dial gauge specific
+  zone_low?: number;
+  zone_high?: number;
+  show_ticks?: boolean;
+  tick_count?: number;
+  needle_color?: string;
+
+  // Spark bar gauge specific
+  bar_count?: number;
+  bar_color?: string;
+  show_trend?: boolean;
+
+  // Donut ring gauge specific
+  ring_thickness?: number;
+  glow_color?: string;
+  use_gradient?: boolean;
+  gradient_end_color?: string;
 }
 
 export interface ColorScheme {

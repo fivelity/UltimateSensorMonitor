@@ -7,7 +7,7 @@
 
   const allWidgets = $derived<WidgetConfig[]>(Object.values($widgets));
 
-  const contentBounds = $derived.by(() => {
+  const contentMetrics = $derived.by(() => {
     let maxX = 0;
     let maxY = 0;
 
@@ -21,18 +21,22 @@
     }
 
     return {
-      width: maxX > 0 ? `${maxX + 100}px` : "100%",
-      height: maxY > 0 ? `${maxY + 100}px` : "100%",
+      width: maxX > 0 ? maxX + 100 : 0,
+      height: maxY > 0 ? maxY + 100 : 0,
     };
   });
 
-  const backgroundStyle = $derived({
-    backgroundSize: `${gridLayout.gridStep}px ${gridLayout.gridStep}px`,
-    backgroundImage: `
-      linear-gradient(to right, var(--theme-border) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--theme-border) 1px, transparent 1px)
-    `,
+  const contentBounds = $derived({
+    width: contentMetrics.width > 0 ? `${contentMetrics.width}px` : "100%",
+    height: contentMetrics.height > 0 ? `${contentMetrics.height}px` : "100%",
   });
+
+  const columns = $derived(
+    Math.max(1, Math.ceil(contentMetrics.width / gridLayout.gridStep)),
+  );
+  const rows = $derived(
+    Math.max(1, Math.ceil(contentMetrics.height / gridLayout.gridStep)),
+  );
 
   function handleCanvasClick() {
     uiUtils.clearSelection();
@@ -63,9 +67,25 @@
     style:height="100%"
     style:min-width={contentBounds.width}
     style:min-height={contentBounds.height}
-    style:background-size={backgroundStyle.backgroundSize}
-    style:background-image={backgroundStyle.backgroundImage}
   >
+    <!-- Visible grid cells: one UI element per cell instead of gridlines -->
+    <div
+      class="grid-cells absolute inset-0 pointer-events-none"
+      aria-hidden="true"
+      style:display="grid"
+      style:grid-template-columns="repeat({columns}, {gridLayout.cellSize}px)"
+      style:grid-template-rows="repeat({rows}, {gridLayout.cellSize}px)"
+      style:gap="{gridLayout.gridGap}px"
+      style:--grid-cell-radius="{gridLayout.effectiveCornerRadius}px"
+    >
+      {#each Array(columns * rows) as _, i (i)}
+        <div
+          class="grid-cell box-border bg-[var(--theme-surface)] border border-[var(--theme-border)]"
+          style:border-radius="var(--grid-cell-radius)"
+        ></div>
+      {/each}
+    </div>
+
     {#each allWidgets as widget (widget.id)}
       <GridWidget {widget} />
     {/each}

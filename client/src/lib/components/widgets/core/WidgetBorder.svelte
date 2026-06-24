@@ -56,7 +56,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    border-radius: 6px;
+    border-radius: var(--grid-radius, 6px);
     transition: all 0.2s ease;
   }
 
@@ -113,7 +113,7 @@
     right: -8px;
     bottom: -8px;
     border: 2px solid var(--theme-primary);
-    border-radius: 8px;
+    border-radius: calc(var(--grid-radius, 6px) + 8px);
     opacity: 0.6;
     animation: pulse-selection 2s infinite;
   }
